@@ -1,0 +1,10 @@
+<main>
+  <p class="eyebrow">AI Analyst</p>
+  <h1>Ask your data better questions.</h1>
+  <p class="description">The foundation is online. Dataset ingestion and AI analysis will follow in the next stages.</p>
+  <p class="health" [class.ready]="health() === 'healthy'" [class.error]="health() === 'unavailable'">
+    @if (health() === 'checking') { Checking API and PostgreSQL… }
+    @else if (health() === 'healthy') { API and PostgreSQL are connected }
+    @else { API or PostgreSQL is unavailable }
+  </p>
+</main>

@@ -4,24 +4,24 @@
 
 ## Текущее состояние
 
-Подготовлена документация для сохранения контекста между сессиями.
-Код приложения пока не создан. При первичном осмотре в корне была только папка `.git`.
-Текущий этап разработки: Stage 1 — Foundation, ещё не начат.
+Stage 1 — Foundation завершён и проверен. Работает Docker Compose vertical slice:
+Angular → `/api/health` → FastAPI → PostgreSQL connectivity check.
+
+Контейнеры остаются запущенными локально: frontend на `http://localhost:4200`, backend на `http://localhost:8000`.
+Текущий этап разработки: Stage 2 — Dataset ingestion, ещё не начат.
 
 ## С чего продолжить
 
-1. Прочитать `AGENTS.md` и `docs/PROJECT_CONTEXT.md`, проверить файлы и `git status`.
-2. Проверить доступность Node.js, Python, Docker и Docker Compose и выбрать совместимые версии зависимостей.
-3. Представить короткий план Stage 1 и реализовать минимальный фундамент в текущем корне проекта: `frontend/`, `backend/`, `infra/`, Docker Compose, `.env.example`, README.
-4. Получить работающий сценарий Angular → `GET /api/health` → FastAPI → проверка соединения PostgreSQL.
-5. Проверить запуск, сборку, тесты, настроенные lint/type checks и health endpoint. Записать реальные результаты и ограничения сюда.
+1. Прочитать `AGENTS.md` и этот журнал, проверить `git status` и запущенные контейнеры: `docker compose ps`.
+2. Начать только Stage 2: ограниченный CSV/XLSX upload, validation, parsing, schema detection и preview API/UI.
+3. Сначала определить явные API-контракты и модель данных dataset; не переходить к LLM, agent или SQL tool.
 
-Команды запуска приложения пока отсутствуют: приложение не создано.
+Запуск: `docker compose up --build`. Остановка: `docker compose down`.
 
 ## Этапы
 
 - [x] Сохранение исходного контекста и настройка журнала работы.
-- [ ] Stage 1 — Foundation: Angular 20+, FastAPI, PostgreSQL, Docker Compose.
+- [x] Stage 1 — Foundation: Angular 21, FastAPI, PostgreSQL, Docker Compose.
 - [ ] Stage 2 — Dataset ingestion: CSV/XLSX, определение схемы, preview.
 - [ ] Stage 3 — Basic AI: один LLM provider, structured output.
 - [ ] Stage 4 — Agent: tool calling и собственный Agent Loop.
@@ -39,6 +39,7 @@
 - Analysis Trace показывает наблюдаемые действия, вычисления и результаты, а не скрытые рассуждения модели.
 - Конкретные версии, LLM provider и детали реализации пока не выбраны.
 - Пользователь поручил делать commit и push в GitHub после завершённых этапов.
+- Пользователь попросил остановиться и сообщить, когда все модули проекта и готовый скрипт развёртывания будут завершены.
 
 ## GitHub
 
@@ -62,6 +63,37 @@
 - Запуск приложения, build, tests и lint не выполнялись: код приложения ещё отсутствует.
 
 Точка остановки: документация подготовлена; следующий шаг — Stage 1 — Foundation.
+
+### 2026-09-17 — Stage 1: Foundation
+
+Выполнено:
+- Создан monorepo с `frontend/`, `backend/`, `infra/`, `docker-compose.yml`, `.env.example` и `README.md`.
+- Создан Angular 21 standalone frontend с signal-first отображением состояния health API.
+- Создан FastAPI backend с Pydantic Settings, SQLAlchemy engine, Alembic scaffold и endpoint `GET /api/health`.
+- Health endpoint выполняет `SELECT 1` к PostgreSQL; при ошибке БД отвечает HTTP 503, а при успехе — `{ "status": "ok", "database": "connected" }`.
+- Создан multi-stage frontend image: тесты и production build выполняются в Node 24, Nginx проксирует `/api/` к backend.
+- Docker Compose поднимает PostgreSQL 17, backend и frontend; backend ждёт successful Postgres healthcheck.
+
+Решения:
+- Angular 21 выбран как текущая современная версия. Локальный Node 18 несовместим, поэтому воспроизводимые frontend install/test/build выполняются в Docker Node 24.
+- SQLAlchemy используется синхронно только для первой health-проверки; async data layer и модели появятся ровно тогда, когда Stage 2 потребует операции с datasets.
+- Nginx убирает необходимость в CORS для browser request и даёт тот же `/api` URL в контейнерной среде.
+- Миграций данных пока нет; Alembic scaffold подготовлен до появления первой модели в Stage 2.
+
+Проверки:
+- `docker compose config --quiet` — успешно.
+- `docker compose build frontend` — успешно; Angular unit tests: 2/2 passed; Angular production build: успешно.
+- `backend/.venv/Scripts/python.exe -m pytest backend/tests -q` — 1 passed.
+- `backend/.venv/Scripts/ruff.exe check backend` — успешно.
+- `docker compose up -d` — все три контейнера running, PostgreSQL healthy.
+- `curl http://localhost:8000/api/health` — `{ "status": "ok", "database": "connected" }`.
+- `curl http://localhost:4200/api/health` — тот же успешный ответ через Nginx proxy.
+
+Ограничения:
+- В текущей Windows-среде Docker CLI работает через WSL и требует root / Docker daemon access. Команды README остаются обычными Docker Compose командами для настроенной пользовательской среды.
+- Backend test выдаёт два upstream deprecation warning от Starlette/TestClient; тест проходит, код проекта не использует deprecated API напрямую.
+
+Точка остановки: Stage 1 завершён. Следующий небольшой этап — Stage 2: CSV/XLSX upload, schema detection и preview.
 
 ## Формат следующих записей
 
