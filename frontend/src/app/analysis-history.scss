@@ -21,5 +21,5 @@
 .analysis-columns { grid-template-columns: 1fr; }
 .analysis-columns ul { font-size: 14px; line-height: 1.75; }
 .analysis-trace { font-size: 13px; line-height: 1.65; }
-.analysis-trace li { margin-top: 10px; }
+.analysis-trace li { margin-top: 10px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
 .sql-query { grid-column: 1 / -1; max-width: 100%; overflow: auto; padding: 14px; border-radius: 8px; background: #eef2f8; color: #334155; font-size: 12px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }

@@ -8,6 +8,7 @@ from pandas.api.types import is_numeric_dtype
 from pydantic import BaseModel
 
 from app.agent.sql_tool import SQLToolError, execute_sql
+from app.agent.statistics import StatisticsResult, calculate_statistics
 from app.datasets.models import Dataset
 from app.datasets.service import parse_dataset
 
@@ -58,6 +59,7 @@ class ExecutedTool(BaseModel):
     result: object
     trace_summary: str
     sql_query: str | None = None
+    statistics: StatisticsResult | None = None
 
 
 class ToolExecutionError(Exception):
@@ -73,6 +75,7 @@ def execute_dataset_tool(dataset: Dataset, name: str, arguments: str) -> Execute
         "dataset_summary",
         "group_by_metric",
         "execute_sql",
+        "column_statistics",
     }:
         raise ToolExecutionError("Недопустимый инструмент или аргументы")
     if name == "execute_sql":
@@ -105,6 +108,18 @@ def execute_dataset_tool(dataset: Dataset, name: str, arguments: str) -> Execute
         )
     except (OSError, HTTPException) as error:
         raise ToolExecutionError("Файл датасета недоступен") from error
+    if name == "column_statistics":
+        try:
+            statistics = calculate_statistics(frame, parsed_arguments)
+        except (ValueError, TypeError, ArithmeticError) as error:
+            raise ToolExecutionError("Проверьте числовые колонки и диапазон значений") from error
+        return ExecutedTool(
+            name=name,
+            result=statistics,
+            statistics=statistics,
+            trace_summary=f"Проверено {len(frame)} строк; колонок: {len(statistics.columns)}. "
+            "Рассчитаны распределения, выбросы IQR и корреляции Пирсона.",
+        )
     if name == "group_by_metric":
         group_by, metric = parsed_arguments.get("group_by"), parsed_arguments.get("metric")
         if group_by not in frame.columns or metric not in frame.columns:

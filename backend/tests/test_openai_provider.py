@@ -129,6 +129,7 @@ def test_agent_multiple_steps_and_budget(monkeypatch):
     assert len(result.analysis_trace) == 2
     assert result.usage.input_tokens == 30
     assert requests[0]["tool_choice"] == "required"
+    assert "column_statistics" in {t["function"]["name"] for t in requests[0]["tools"]}
     assert requests[1]["tool_choice"] == "auto"
     assert requests[1]["messages"][2].tool_calls[0].id == "1"
     requests.clear()

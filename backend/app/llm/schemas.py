@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.agent.statistics import StatisticsResult
+
 
 class AnalysisContent(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -28,6 +30,7 @@ class AnalysisTraceStep(BaseModel):
     summary: str
     sql_query: str | None = Field(default=None, max_length=8000)
     status: Literal["completed", "failed"] = "completed"
+    statistics: StatisticsResult | None = None
 
 
 class AnalysisResponse(BaseModel):

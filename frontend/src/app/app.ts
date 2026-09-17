@@ -1,6 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { StatisticsEvidence, StatisticsResult, statisticsMarkdown } from './statistics-evidence';
 
 interface DatasetSummary {
   id: string;
@@ -37,12 +38,12 @@ interface DatasetAnalysis {
   provider: string;
   model: string;
   usage: { input_tokens: number; output_tokens: number };
-  analysis_trace?: Array<{ tool: string; summary: string; sql_query?: string | null }>;
+  analysis_trace?: Array<{ tool: string; summary: string; sql_query?: string | null; statistics?: StatisticsResult | null }>;
 }
 
 @Component({
   selector: 'app-root',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, StatisticsEvidence],
   templateUrl: './app.html',
   styleUrls: ['./app.scss', './analysis-history.scss']
 })
@@ -99,7 +100,7 @@ export class App implements OnInit {
       '## Ключевые наблюдения', ...item.content.key_findings.map(value => `- ${value}`), '',
       '## Ограничения', ...item.content.limitations.map(value => `- ${value}`), '',
       '## Ход анализа', ...(item.analysis_trace ?? []).map(step =>
-        `- ${this.traceLabel(step.tool)}: ${step.summary}` + (step.sql_query ? `\n\n\`\`\`sql\n${step.sql_query}\n\`\`\`\n` : ''))
+        `- ${this.traceLabel(step.tool)}: ${step.summary}` + (step.sql_query ? `\n\n\`\`\`sql\n${step.sql_query}\n\`\`\`\n` : '') + (step.statistics ? statisticsMarkdown(step.statistics) : ''))
     ].join('\n');
     const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }));
     const link = document.createElement('a');
@@ -235,6 +236,7 @@ export class App implements OnInit {
 
   protected traceLabel(tool: string): string {
     if (tool === 'execute_sql') return 'SQL-анализ';
+    if (tool === 'column_statistics') return 'Статистика и выбросы';
     return tool === 'dataset_summary' ? 'Сводка датасета' : tool === 'group_by_metric' ? 'Группировка по метрике' : 'Проверка данных';
   }
 

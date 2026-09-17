@@ -6,6 +6,7 @@ from openai import APIError, AsyncOpenAI
 from starlette.concurrency import run_in_threadpool
 
 from app.agent.sql_tool import SQL_TOOL
+from app.agent.statistics import STATISTICS_TOOL
 from app.agent.tools import (
     DATASET_SUMMARY_TOOL,
     GROUP_BY_METRIC_TOOL,
@@ -128,7 +129,7 @@ class OpenAIProvider:
                 reply = await self._client.chat.completions.create(
                     model=self._model,
                     messages=messages,
-                    tools=[DATASET_SUMMARY_TOOL, GROUP_BY_METRIC_TOOL, SQL_TOOL],
+                    tools=[DATASET_SUMMARY_TOOL, GROUP_BY_METRIC_TOOL, SQL_TOOL, STATISTICS_TOOL],
                     tool_choice="required" if turn == 0 else ("none" if turn == 5 else "auto"),
                     parallel_tool_calls=False,
                     max_tokens=1200,
@@ -199,6 +200,7 @@ class OpenAIProvider:
                         tool=executed.name,
                         summary=executed.trace_summary,
                         sql_query=executed.sql_query,
+                        statistics=executed.statistics,
                     )
                 )
         except (APIError, ToolExecutionError, ValueError, TypeError, IndexError) as error:

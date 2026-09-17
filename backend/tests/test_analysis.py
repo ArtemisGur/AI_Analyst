@@ -97,6 +97,34 @@ def test_analysis_returns_structured_response(client):
     }
 
 
+def test_statistics_evidence_survives_history_roundtrip(client):
+    import pandas as pd
+
+    from app.agent.statistics import calculate_statistics
+    from app.llm.schemas import AnalysisTraceStep
+
+    statistics = calculate_statistics(pd.DataFrame({"x": [1, 2, 3, 4, 100]}), {"columns": ["x"]})
+
+    class StatisticsProvider(FakeProvider):
+        async def analyze_dataset(self, dataset, question, execute_tool=None):
+            result = await super().analyze_dataset(dataset, question, execute_tool)
+            result.analysis_trace.append(
+                AnalysisTraceStep(
+                    tool="column_statistics", summary="Calculated", statistics=statistics
+                )
+            )
+            return result
+
+    app.dependency_overrides[get_llm_provider] = StatisticsProvider
+    test_client, dataset_id = client
+    saved = test_client.post(
+        f"/api/datasets/{dataset_id}/analysis", json={"question": "Что происходит с выручкой?"}
+    ).json()
+    history = test_client.get(f"/api/datasets/{dataset_id}/analyses").json()
+    assert history == [saved]
+    assert history[0]["analysis_trace"][0]["statistics"] == statistics.model_dump()
+
+
 def test_analysis_validates_dataset_and_question(client):
     test_client, _ = client
     unknown = test_client.post(f"/api/datasets/{uuid4()}/analysis", json={"question": "Тест"})
