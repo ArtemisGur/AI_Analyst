@@ -110,7 +110,7 @@ Stage 3 — Basic AI завершён и проверен в живом сцен
 - `backend/.venv/Scripts/python.exe -m pytest backend/tests -q` — 19 passed. Добавлена проверка RelayModels-ветки с `chat/completions`, JSON Schema и корректным чтением usage.
 - `docker compose build frontend` — Angular tests 3/3 passed и production build успешны.
 - Контролируемая проверка без ключа возвращает HTTP 503, без раскрытия конфигурации.
-- Живой запрос к RelayModels с `OPENAI_BASE_URL=https://api.relaymodels.com/v1` и моделью `gpt-5.6-sol` успешен: API вернул структурированный ответ с выводом, наблюдениями, ограничениями и usage.
+- Живой запрос к RelayModels с `OPENAI_BASE_URL=https://api.relaymodels.com/v1` и моделью `gpt-5.6-terra` успешен: API вернул структурированный ответ с выводом, наблюдениями, ограничениями и usage.
 
 Решения и ограничения:
 - Это Basic AI без Agent Loop и вычислительных инструментов: модель видит только metadata и preview, поэтому выводы ограничены этим контекстом.

@@ -40,7 +40,7 @@ def test_relaymodels_uses_chat_completions_with_json_schema(monkeypatch):
         Settings(
             openai_api_key=SecretStr("test-key"),
             openai_base_url="https://api.relaymodels.com/v1",
-            openai_model="gpt-5.6-sol",
+            openai_model="gpt-5.6-terra",
         )
     )
     dataset = DatasetResponse(
@@ -62,7 +62,7 @@ def test_relaymodels_uses_chat_completions_with_json_schema(monkeypatch):
         "base_url": "https://api.relaymodels.com/v1",
     }
     request = captured["request"]
-    assert request["model"] == "gpt-5.6-sol"
+    assert request["model"] == "gpt-5.6-terra"
     assert request["response_format"]["type"] == "json_schema"
     assert result.usage.input_tokens == 11
     assert result.usage.output_tokens == 7
