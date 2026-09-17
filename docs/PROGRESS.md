@@ -9,13 +9,14 @@ Angular → `/api/health` → FastAPI → PostgreSQL connectivity check.
 
 Контейнеры остаются запущенными локально: frontend на `http://localhost:4200`, backend на `http://localhost:8000`.
 Stage 2 — Dataset ingestion завершён и проверен. Работает загрузка CSV/XLSX, определение схемы, preview и русский UI.
-Текущий этап разработки: Stage 3 — Basic AI ещё не начат.
+Stage 3 — Basic AI завершён в коде и проверен без внешнего ключа. Реализован один OpenAI provider, строгий structured output и русский интерфейс вопроса к выбранному датасету.
+Текущий этап разработки: Stage 4 — Agent.
 
 ## С чего продолжить
 
 1. Прочитать `AGENTS.md` и этот журнал, проверить `git status` и запущенные контейнеры: `docker compose ps`.
-2. Следующий небольшой этап: выбрать и изолировать первого LLM provider, задать явный structured contract для простого ответа без Agent Loop.
-3. Не переходить к tool calling, SQL или Python sandbox до завершения Basic AI.
+2. Следующий небольшой этап: задать контракт безопасного backend-инструмента и реализовать `dataset_summary` для Agent Loop.
+3. Не подключать SQL, Python sandbox или произвольное выполнение кода до отдельного этапа Analysis Tools.
 
 Запуск: `docker compose up --build`. Остановка: `docker compose down`.
 
@@ -24,7 +25,7 @@ Stage 2 — Dataset ingestion завершён и проверен. Работа
 - [x] Сохранение исходного контекста и настройка журнала работы.
 - [x] Stage 1 — Foundation: Angular 21, FastAPI, PostgreSQL, Docker Compose.
 - [x] Stage 2 — Dataset ingestion: CSV/XLSX, определение схемы, preview.
-- [ ] Stage 3 — Basic AI: один LLM provider, structured output.
+- [x] Stage 3 — Basic AI: один LLM provider, structured output.
 - [ ] Stage 4 — Agent: tool calling и собственный Agent Loop.
 - [ ] Stage 5 — Analysis Tools: SQL, статистика, изолированный Python sandbox.
 - [ ] Stage 6 — Visualization: structured charts и ECharts.
@@ -94,6 +95,27 @@ Stage 2 — Dataset ingestion завершён и проверен. Работа
 - Локальные `.env`, логи, uploads и cache исключены из Git. Скрипты запуска не содержат пользовательского имени или абсолютного пути.
 
 Точка остановки: Stage 2 завершён. Следующий небольшой этап — Stage 3: Basic AI с одним провайдером и structured output, без Agent Loop.
+
+### 2026-09-17 — Stage 3: Basic AI
+
+Реализовано:
+- Добавлен изолированный контракт `LLMProvider` и первая реализация `OpenAIProvider`; ключ и модель считываются только из переменных окружения backend.
+- Добавлен `POST /api/datasets/{dataset_id}/analysis`. Он передаёт провайдеру вопрос, схему и ограниченный preview выбранного датасета, а клиенту возвращает типизированные `summary`, `key_findings`, `limitations` и usage.
+- Вызов OpenAI использует Responses API, строгую JSON Schema и `store=false`. Инструкции запрещают следовать командам из содержимого датасета и требуют отвечать по-русски с явными ограничениями.
+- В Angular добавлена карточка вопроса и результата AI-анализа для выбранного датасета. Ключ не передаётся в браузер.
+- Добавлены `.env.example`, Docker Compose-конфигурация и README с настройкой `OPENAI_API_KEY`; локальный `.env` не включён в Git.
+
+Проверено:
+- `backend/.venv/Scripts/ruff.exe check backend` — успешно.
+- `backend/.venv/Scripts/python.exe -m pytest backend/tests -q` — 18 passed. Тесты покрывают успешный структурированный ответ, несуществующий датасет, валидацию вопроса, ошибку provider и отсутствие конфигурации.
+- `docker compose build frontend` — Angular tests 3/3 passed и production build успешны.
+- Реальный запрос к OpenAI намеренно не выполнялся: локальный `OPENAI_API_KEY` не задан. Без ключа API возвращает контролируемый HTTP 503, без раскрытия конфигурации.
+
+Решения и ограничения:
+- Это Basic AI без Agent Loop и вычислительных инструментов: модель видит только metadata и preview, поэтому выводы ограничены этим контекстом.
+- Для живой проверки пользователь задаёт ключ в локальном `.env`; ключ нельзя добавлять в коммиты или отправлять в чат.
+
+Точка продолжения: Stage 4 — Agent. Первый небольшой шаг: безопасный инструмент `dataset_summary` и контракт вызова инструмента.
 
 ### 2026-09-17 — Обновление дизайна datasets workspace
 

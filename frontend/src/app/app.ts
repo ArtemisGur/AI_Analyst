@@ -22,6 +22,19 @@ interface ColumnMetadata {
   missing_count: number;
 }
 
+interface AnalysisContent {
+  summary: string;
+  key_findings: string[];
+  limitations: string[];
+}
+
+interface DatasetAnalysis {
+  content: AnalysisContent;
+  provider: string;
+  model: string;
+  usage: { input_tokens: number; output_tokens: number };
+}
+
 @Component({
   selector: 'app-root',
   imports: [ReactiveFormsModule],
@@ -36,6 +49,9 @@ export class App implements OnInit {
   protected readonly isUploading = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly fileControl = new FormControl<File | null>(null);
+  protected readonly questionControl = new FormControl('', { nonNullable: true });
+  protected readonly analysis = signal<DatasetAnalysis | null>(null);
+  protected readonly isAnalyzing = signal(false);
 
   constructor(private readonly http: HttpClient) {}
 
@@ -69,6 +85,7 @@ export class App implements OnInit {
       next: dataset => {
         this.datasets.update(items => [dataset, ...items]);
         this.selectedDataset.set(dataset);
+        this.analysis.set(null);
         this.fileControl.reset();
         this.isUploading.set(false);
       },
@@ -82,6 +99,7 @@ export class App implements OnInit {
   protected selectDataset(dataset: DatasetSummary): void {
     if (this.selectedDataset()?.id === dataset.id) return;
     this.error.set(null);
+    this.analysis.set(null);
     this.http.get<Dataset>(`/api/datasets/${dataset.id}`).subscribe({
       next: value => this.selectedDataset.set(value),
       error: error => this.error.set(this.messageFor(error))
@@ -90,6 +108,29 @@ export class App implements OnInit {
 
   protected valueFor(row: Dataset['preview'][number], column: string): string | number | boolean | null {
     return row[column] ?? null;
+  }
+
+  protected analyze(): void {
+    const dataset = this.selectedDataset();
+    const question = this.questionControl.value.trim();
+    if (!dataset) return;
+    if (question.length < 3) {
+      this.error.set('Задайте вопрос длиной не менее трёх символов.');
+      return;
+    }
+    this.error.set(null);
+    this.isAnalyzing.set(true);
+    this.analysis.set(null);
+    this.http.post<DatasetAnalysis>(`/api/datasets/${dataset.id}/analysis`, { question }).subscribe({
+      next: analysis => {
+        this.analysis.set(analysis);
+        this.isAnalyzing.set(false);
+      },
+      error: error => {
+        this.error.set(this.messageFor(error));
+        this.isAnalyzing.set(false);
+      }
+    });
   }
 
   protected typeLabel(dtype: string): string {

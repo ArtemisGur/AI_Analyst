@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,6 +13,8 @@ class Settings(BaseSettings):
     max_dataset_rows: int = 100_000
     max_dataset_columns: int = 200
     max_xlsx_uncompressed_bytes: int = 100 * 1024 * 1024
+    openai_api_key: SecretStr | None = None
+    openai_model: str = "gpt-5.5"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
