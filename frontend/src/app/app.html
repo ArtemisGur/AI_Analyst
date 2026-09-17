@@ -1,47 +1,118 @@
-<main>
-  <header>
-    <p class="eyebrow">AI Analyst</p>
-    <h1>Датасеты</h1>
-    <p class="description">Загрузите CSV или XLSX, чтобы посмотреть определённую схему и первые строки данных.</p>
-    <p class="health" [class.ready]="health() === 'healthy'" [class.error]="health() === 'unavailable'">
-      @if (health() === 'checking') { Проверяем API и PostgreSQL… }
-      @else if (health() === 'healthy') { API и PostgreSQL подключены }
-      @else { API или PostgreSQL недоступны }
-    </p>
-  </header>
-  <section class="upload-card" aria-labelledby="upload-heading">
-    <div><h2 id="upload-heading">Добавить датасет</h2><p>Поддерживаются файлы CSV и XLSX до 20 МБ.</p></div>
-    <div class="upload-actions">
-      <input id="dataset-file" type="file" accept=".csv,.xlsx" (change)="onFileSelected($event)">
-      <button type="button" (click)="upload()" [disabled]="isUploading()">{{ isUploading() ? 'Загрузка…' : 'Загрузить датасет' }}</button>
+<div class="app-shell">
+  <aside class="navigation" aria-label="Основная навигация">
+    <a class="brand" href="/" aria-label="AI Analyst">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span>AI Analyst</span>
+    </a>
+
+    <nav>
+      <a class="nav-item active" href="/" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>
+        Датасеты
+      </a>
+      <span class="nav-item disabled" aria-disabled="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5m0 14h16M7 16l4-4 3 2 4-6"/></svg>
+        Анализы
+        <small>Скоро</small>
+      </span>
+    </nav>
+
+    <div class="navigation-footer">
+      <span class="status-dot" [class.online]="health() === 'healthy'"></span>
+      @if (health() === 'checking') { Проверяем сервисы… }
+      @else if (health() === 'healthy') { Сервисы подключены }
+      @else { Сервисы недоступны }
     </div>
-  </section>
-  @if (error(); as errorMessage) { <p class="message error" role="alert">{{ errorMessage }}</p> }
-  <section class="workspace">
-    <aside aria-label="Uploaded datasets">
-      <h2>Ваши датасеты</h2>
-      @if (isLoading()) { <p class="muted">Загружаем список датасетов…</p> }
-      @else if (datasets().length === 0) { <p class="muted">Датасетов пока нет. Загрузите файл, чтобы начать.</p> }
-      @else {
-        <ul>@for (dataset of datasets(); track dataset.id) {
-          <li><button type="button" class="dataset-button" [class.selected]="selectedDataset()?.id === dataset.id" (click)="selectDataset(dataset)">
-            <strong>{{ dataset.name }}</strong><span>{{ dataset.row_count }} строк · {{ dataset.column_count }} столбцов</span>
-          </button></li>
-        }</ul>
-      }
-    </aside>
-    <section class="detail" aria-live="polite">
-      @if (selectedDataset(); as dataset) {
-        <div class="detail-heading"><div><p class="eyebrow">Предпросмотр датасета</p><h2>{{ dataset.original_filename }}</h2></div><p>{{ dataset.row_count }} строк · {{ dataset.column_count }} столбцов</p></div>
-        <h3>Определённая схема</h3>
-        <div class="schema-grid">@for (column of dataset.schema_metadata; track column.name) {
-          <article><strong>{{ column.name }}</strong><span>{{ column.dtype }}</span><small>Пропусков: {{ column.missing_count }}</small></article>
-        }</div>
-        <h3>Первые {{ dataset.preview.length }} строк</h3>
-        <div class="table-wrap"><table><thead><tr>@for (column of dataset.schema_metadata; track column.name) { <th>{{ column.name }}</th> }</tr></thead><tbody>
-          @for (row of dataset.preview; track $index) { <tr>@for (column of dataset.schema_metadata; track column.name) { <td>{{ valueFor(row, column.name) ?? '—' }}</td> }</tr> }
-        </tbody></table></div>
-      } @else { <div class="empty-state"><h2>Выберите или загрузите датасет</h2><p>Здесь появятся его схема и предпросмотр.</p></div> }
+  </aside>
+
+  <main>
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">Рабочая область</p>
+        <h1>Датасеты</h1>
+        <p>Подготовьте источник данных для последующего анализа.</p>
+      </div>
+      <section class="upload-control" aria-labelledby="upload-heading">
+        <input id="dataset-file" type="file" accept=".csv,.xlsx" (change)="onFileSelected($event)">
+        <label for="dataset-file" class="secondary-action">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M5 15v4h14v-4"/></svg>
+          {{ fileControl.value?.name || 'Выбрать файл' }}
+        </label>
+        <button type="button" class="primary-action" (click)="upload()" [disabled]="isUploading()">
+          <span>{{ isUploading() ? 'Загрузка…' : 'Загрузить' }}</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+        </button>
+      </section>
+    </header>
+
+    @if (error(); as errorMessage) {
+      <p class="message error" role="alert"><span>!</span>{{ errorMessage }}</p>
+    }
+
+    <section class="workspace">
+      <aside class="dataset-panel" aria-label="Загруженные датасеты">
+        <div class="panel-heading">
+          <div><p class="eyebrow">Источники</p><h2>Ваши датасеты</h2></div>
+          @if (!isLoading()) { <span class="count">{{ datasets().length }}</span> }
+        </div>
+
+        @if (isLoading()) {
+          <div class="loading-list"><i></i><i></i><i></i></div>
+        } @else if (datasets().length === 0) {
+          <div class="empty-list">
+            <span class="empty-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm8-2v6h6"/></svg></span>
+            <h3>Нет данных</h3>
+            <p>Загрузите CSV или XLSX, чтобы увидеть структуру данных.</p>
+          </div>
+        } @else {
+          <ul class="dataset-list">
+            @for (dataset of datasets(); track dataset.id) {
+              <li><button type="button" class="dataset-button" [class.selected]="selectedDataset()?.id === dataset.id" (click)="selectDataset(dataset)">
+                <span class="file-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6zm8 0v5h4M9 12h6m-6 4h6"/></svg></span>
+                <span><strong>{{ dataset.name }}</strong><small>{{ dataset.row_count }} строк · {{ dataset.column_count }} столбцов</small></span>
+                <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+              </button></li>
+            }
+          </ul>
+        }
+        <p class="upload-hint">CSV и XLSX · до 20 МБ</p>
+      </aside>
+
+      <section class="detail-panel" aria-live="polite">
+        @if (selectedDataset(); as dataset) {
+          <div class="dataset-overview">
+            <div class="dataset-title"><span class="dataset-symbol"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6zm8 0v5h4M9 12h6m-6 4h6"/></svg></span><div><p class="eyebrow">Активный датасет</p><h2>{{ dataset.original_filename }}</h2></div></div>
+            <span class="ready-badge"><i></i> Готов к анализу</span>
+          </div>
+
+          <div class="metrics" aria-label="Сводка датасета">
+            <article><span>Строк</span><strong>{{ dataset.row_count }}</strong><small>в источнике</small></article>
+            <article><span>Столбцов</span><strong>{{ dataset.column_count }}</strong><small>в схеме</small></article>
+            <article><span>Предпросмотр</span><strong>{{ dataset.preview.length }}</strong><small>первых строк</small></article>
+          </div>
+
+          <section class="section-block">
+            <div class="section-heading"><div><p class="eyebrow">Структура</p><h3>Определённая схема</h3></div><span class="section-note">Типы определены автоматически</span></div>
+            <div class="schema-grid">@for (column of dataset.schema_metadata; track column.name) {
+              <article><strong>{{ column.name }}</strong><span>{{ column.dtype }}</span><small [class.has-missing]="column.missing_count > 0">Пропусков: {{ column.missing_count }}</small></article>
+            }</div>
+          </section>
+
+          <section class="section-block preview-block">
+            <div class="section-heading"><div><p class="eyebrow">Данные</p><h3>Предпросмотр</h3></div><span class="section-note">Первые {{ dataset.preview.length }} строк</span></div>
+            <div class="table-wrap"><table><thead><tr>@for (column of dataset.schema_metadata; track column.name) { <th>{{ column.name }}</th> }</tr></thead><tbody>
+              @for (row of dataset.preview; track $index) { <tr>@for (column of dataset.schema_metadata; track column.name) { <td>{{ valueFor(row, column.name) ?? '—' }}</td> }</tr> }
+            </tbody></table></div>
+          </section>
+        } @else {
+          <div class="empty-state">
+            <span class="empty-visual"><i></i><i></i><i></i><i></i></span>
+            <p class="eyebrow">Начало работы</p><h2>Подключите первый датасет</h2>
+            <p>Выберите CSV или XLSX в верхней панели. После загрузки здесь появятся структура и первые строки данных.</p>
+            <label for="dataset-file" class="text-action">Выбрать файл <span>→</span></label>
+          </div>
+        }
+      </section>
     </section>
-  </section>
-</main>
+  </main>
+</div>

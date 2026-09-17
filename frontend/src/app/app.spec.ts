@@ -28,6 +28,6 @@ describe('App', () => {
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('h1')?.textContent).toContain('Датасеты');
-    expect(compiled.textContent).toContain('Датасетов пока нет.');
+    expect(compiled.textContent).toContain('Подключите первый датасет');
   });
 });
