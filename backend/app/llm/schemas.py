@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -25,6 +26,8 @@ class TokenUsage(BaseModel):
 class AnalysisTraceStep(BaseModel):
     tool: str
     summary: str
+    sql_query: str | None = Field(default=None, max_length=8000)
+    status: Literal["completed", "failed"] = "completed"
 
 
 class AnalysisResponse(BaseModel):

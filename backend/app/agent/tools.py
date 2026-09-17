@@ -7,6 +7,7 @@ from pandas import isna
 from pandas.api.types import is_numeric_dtype
 from pydantic import BaseModel
 
+from app.agent.sql_tool import SQLToolError, execute_sql
 from app.datasets.models import Dataset
 from app.datasets.service import parse_dataset
 
@@ -56,6 +57,7 @@ class ExecutedTool(BaseModel):
     name: str
     result: object
     trace_summary: str
+    sql_query: str | None = None
 
 
 class ToolExecutionError(Exception):
@@ -67,8 +69,27 @@ def execute_dataset_tool(dataset: Dataset, name: str, arguments: str) -> Execute
         parsed_arguments = json.loads(arguments or "{}")
     except json.JSONDecodeError as error:
         raise ToolExecutionError("Инструмент получил некорректные аргументы") from error
-    if not isinstance(parsed_arguments, dict) or name not in {"dataset_summary", "group_by_metric"}:
+    if not isinstance(parsed_arguments, dict) or name not in {
+        "dataset_summary",
+        "group_by_metric",
+        "execute_sql",
+    }:
         raise ToolExecutionError("Недопустимый инструмент или аргументы")
+    if name == "execute_sql":
+        try:
+            result = execute_sql(dataset.storage_path, parsed_arguments)
+        except (SQLToolError, ValueError) as error:
+            raise ToolExecutionError("SQL-запрос отклонён или превысил лимиты") from error
+        return ExecutedTool(
+            name=name,
+            result=result,
+            sql_query=parsed_arguments["query"].strip(),
+            trace_summary=(
+                f"SQL-анализ по {result['source_rows']} строкам. "
+                f"Получено строк результата: {result['returned_rows']}."
+                + (" Результат ограничен первыми 100 строками." if result["truncated"] else "")
+            ),
+        )
     if name == "dataset_summary" and parsed_arguments:
         raise ToolExecutionError("Сводка не принимает аргументы")
     if name == "group_by_metric" and (

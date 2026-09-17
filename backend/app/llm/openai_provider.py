@@ -3,7 +3,9 @@ from collections.abc import Callable
 from typing import Any
 
 from openai import APIError, AsyncOpenAI
+from starlette.concurrency import run_in_threadpool
 
+from app.agent.sql_tool import SQL_TOOL
 from app.agent.tools import (
     DATASET_SUMMARY_TOOL,
     GROUP_BY_METRIC_TOOL,
@@ -126,7 +128,7 @@ class OpenAIProvider:
                 reply = await self._client.chat.completions.create(
                     model=self._model,
                     messages=messages,
-                    tools=[DATASET_SUMMARY_TOOL, GROUP_BY_METRIC_TOOL],
+                    tools=[DATASET_SUMMARY_TOOL, GROUP_BY_METRIC_TOOL, SQL_TOOL],
                     tool_choice="required" if turn == 0 else ("none" if turn == 5 else "auto"),
                     parallel_tool_calls=False,
                     max_tokens=1200,
@@ -144,7 +146,7 @@ class OpenAIProvider:
                 message = reply.choices[0].message
                 calls = message.tool_calls or []
                 if not calls:
-                    if not trace:
+                    if not any(step.status == "completed" for step in trace):
                         raise LLMProviderError("Agent did not verify data")
                     return GeneratedAnalysis(
                         content=AnalysisContent.model_validate_json(message.content),
@@ -155,7 +157,35 @@ class OpenAIProvider:
                 if len(calls) != 1 or turn == 5:
                     raise LLMProviderError("Agent exceeded tool budget")
                 call = calls[0]
-                executed = execute_tool(call.function.name, call.function.arguments)
+                try:
+                    executed = await run_in_threadpool(
+                        execute_tool, call.function.name, call.function.arguments
+                    )
+                except ToolExecutionError:
+                    error_result = {
+                        "error": "Tool rejected the request. Check exact columns, argument types "
+                        "and allowed operations. For SQL use one read-only SELECT on dataset. "
+                        "Simplify the query if it exceeds limits. No result was calculated."
+                    }
+                    messages.extend(
+                        [
+                            message,
+                            {
+                                "role": "tool",
+                                "tool_call_id": call.id,
+                                "content": json.dumps(error_result),
+                            },
+                        ]
+                    )
+                    trace.append(
+                        AnalysisTraceStep(
+                            tool=call.function.name,
+                            status="failed",
+                            summary="Запрос отклонён: неверные аргументы или превышены лимиты. "
+                            "Расчёт не выполнен.",
+                        )
+                    )
+                    continue
                 result = (
                     executed.result.model_dump_json()
                     if hasattr(executed.result, "model_dump_json")
@@ -164,7 +194,13 @@ class OpenAIProvider:
                 messages.extend(
                     [message, {"role": "tool", "tool_call_id": call.id, "content": result}]
                 )
-                trace.append(AnalysisTraceStep(tool=executed.name, summary=executed.trace_summary))
+                trace.append(
+                    AnalysisTraceStep(
+                        tool=executed.name,
+                        summary=executed.trace_summary,
+                        sql_query=executed.sql_query,
+                    )
+                )
         except (APIError, ToolExecutionError, ValueError, TypeError, IndexError) as error:
             raise LLMProviderError("Agent request failed") from error
         raise LLMProviderError("Agent exceeded tool budget")

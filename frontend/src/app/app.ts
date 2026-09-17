@@ -37,7 +37,7 @@ interface DatasetAnalysis {
   provider: string;
   model: string;
   usage: { input_tokens: number; output_tokens: number };
-  analysis_trace?: Array<{ tool: string; summary: string }>;
+  analysis_trace?: Array<{ tool: string; summary: string; sql_query?: string | null }>;
 }
 
 @Component({
@@ -98,7 +98,8 @@ export class App implements OnInit {
       '## Вопрос', '', item.question, '', '## Вывод', '', item.content.summary, '',
       '## Ключевые наблюдения', ...item.content.key_findings.map(value => `- ${value}`), '',
       '## Ограничения', ...item.content.limitations.map(value => `- ${value}`), '',
-      '## Ход анализа', ...(item.analysis_trace ?? []).map(step => `- ${this.traceLabel(step.tool)}: ${step.summary}`)
+      '## Ход анализа', ...(item.analysis_trace ?? []).map(step =>
+        `- ${this.traceLabel(step.tool)}: ${step.summary}` + (step.sql_query ? `\n\n\`\`\`sql\n${step.sql_query}\n\`\`\`\n` : ''))
     ].join('\n');
     const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }));
     const link = document.createElement('a');
@@ -233,6 +234,7 @@ export class App implements OnInit {
   }
 
   protected traceLabel(tool: string): string {
+    if (tool === 'execute_sql') return 'SQL-анализ';
     return tool === 'dataset_summary' ? 'Сводка датасета' : tool === 'group_by_metric' ? 'Группировка по метрике' : 'Проверка данных';
   }
 

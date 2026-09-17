@@ -139,3 +139,69 @@ def test_agent_multiple_steps_and_budget(monkeypatch):
     assert len(requests) == 6
     assert len(executed) == 5
     assert requests[-1]["tool_choice"] == "none"
+
+
+def test_agent_recovers_from_rejected_tool(monkeypatch):
+    from app.agent.tools import ExecutedTool, ToolExecutionError
+
+    requests = []
+
+    class Client:
+        def __init__(self, **kwargs):
+            self.chat = SimpleNamespace(completions=self)
+
+        async def create(self, **kwargs):
+            requests.append(kwargs)
+            calls = (
+                []
+                if len(requests) == 3
+                else [
+                    SimpleNamespace(
+                        id=str(len(requests)),
+                        function=SimpleNamespace(name="execute_sql", arguments="{}"),
+                    )
+                ]
+            )
+            return SimpleNamespace(
+                usage=None,
+                choices=[
+                    SimpleNamespace(
+                        message=SimpleNamespace(
+                            tool_calls=calls,
+                            content='{"summary":"Done","key_findings":["Fact"],"limitations":[]}',
+                        )
+                    )
+                ],
+            )
+
+    monkeypatch.setattr("app.llm.openai_provider.AsyncOpenAI", Client)
+    provider = OpenAIProvider(Settings(openai_api_key=SecretStr("test")))
+    dataset = DatasetResponse(
+        id=uuid4(),
+        name="test",
+        original_filename="test.csv",
+        row_count=1,
+        column_count=1,
+        created_at=datetime.now(),
+        schema_metadata=[],
+        preview=[],
+    )
+    attempts = 0
+
+    def tool(name, args):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise ToolExecutionError("private detail")
+        return ExecutedTool(
+            name=name,
+            result={"rows": [[1]]},
+            trace_summary="Calculated",
+            sql_query="SELECT COUNT(*) FROM dataset",
+        )
+
+    result = asyncio.run(provider.analyze_dataset(dataset, "Count", tool))
+    assert [step.status for step in result.analysis_trace] == ["failed", "completed"]
+    assert result.analysis_trace[1].sql_query == "SELECT COUNT(*) FROM dataset"
+    assert "private detail" not in str(requests)
+    assert "Tool rejected" in str(requests)
