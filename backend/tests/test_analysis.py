@@ -18,7 +18,7 @@ from app.main import app
 class FakeProvider:
     provider_name = "fake"
 
-    async def analyze_dataset(self, dataset, question):
+    async def analyze_dataset(self, dataset, question, execute_tool=None):
         assert dataset.name == "sales"
         assert question == "Что происходит с выручкой?"
         return GeneratedAnalysis(
@@ -86,6 +86,7 @@ def test_analysis_returns_structured_response(client):
         "provider": "fake",
         "model": "fake-model",
         "usage": {"input_tokens": 12, "output_tokens": 7},
+        "analysis_trace": [],
     }
 
 
@@ -105,7 +106,7 @@ def test_analysis_hides_provider_failure(client):
     class FailingProvider:
         provider_name = "fake"
 
-        async def analyze_dataset(self, dataset, question):
+        async def analyze_dataset(self, dataset, question, execute_tool=None):
             raise LLMProviderError("secret provider detail")
 
     app.dependency_overrides[get_llm_provider] = FailingProvider

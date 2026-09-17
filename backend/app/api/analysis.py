@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.agent.tools import execute_dataset_tool
 from app.api.datasets import get_session, response
 from app.datasets.models import Dataset
 from app.llm.openai_provider import get_llm_provider
@@ -25,7 +26,11 @@ async def analyze_dataset(
     if provider is None:
         raise HTTPException(503, "AI-провайдер не настроен")
     try:
-        generated = await provider.analyze_dataset(response(dataset), request.question)
+        generated = await provider.analyze_dataset(
+            response(dataset),
+            request.question,
+            lambda name, arguments: execute_dataset_tool(dataset, name, arguments),
+        )
     except LLMConfigurationError:
         raise HTTPException(503, "AI-провайдер не настроен") from None
     except LLMProviderError:
@@ -35,4 +40,5 @@ async def analyze_dataset(
         provider=provider.provider_name,
         model=generated.model,
         usage=generated.usage,
+        analysis_trace=generated.analysis_trace,
     )

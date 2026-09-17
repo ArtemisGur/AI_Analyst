@@ -10,7 +10,7 @@ Angular → `/api/health` → FastAPI → PostgreSQL connectivity check.
 Контейнеры остаются запущенными локально: frontend на `http://localhost:4200`, backend на `http://localhost:8000`.
 Stage 2 — Dataset ingestion завершён и проверен. Работает загрузка CSV/XLSX, определение схемы, preview и русский UI.
 Stage 3 — Basic AI завершён и проверен в живом сценарии через RelayModels. Реализован OpenAI-совместимый provider, строгий structured output и русский интерфейс вопроса к выбранному датасету.
-Текущий этап разработки: Stage 4 — Agent.
+Текущий этап разработки: Stage 4 — Agent, в работе: безопасный `dataset_summary`, первый Analysis Trace и подготовка следующего инструмента группировки.
 
 ## С чего продолжить
 

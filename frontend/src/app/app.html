@@ -1,5 +1,8 @@
-<div class="app-shell">
+<div class="app-shell" [class.navigation-collapsed]="navigationCollapsed()">
   <aside class="navigation" aria-label="Основная навигация">
+    <button type="button" class="nav-collapse" (click)="navigationCollapsed.set(!navigationCollapsed())" [attr.aria-label]="navigationCollapsed() ? 'Показать меню' : 'Скрыть меню'">
+      <span aria-hidden="true">{{ navigationCollapsed() ? '›' : '‹' }}</span>
+    </button>
     <a class="brand" href="/" aria-label="AI Analyst">
       <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
       <span>AI Analyst</span>
@@ -82,7 +85,7 @@
         @if (selectedDataset(); as dataset) {
           <div class="dataset-overview">
             <div class="dataset-title"><span class="dataset-symbol"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6zm8 0v5h4M9 12h6m-6 4h6"/></svg></span><div><p class="eyebrow">Активный датасет</p><h2>{{ dataset.original_filename }}</h2></div></div>
-            <span class="ready-badge"><i></i> Готов к анализу</span>
+            <div><span class="ready-badge"><i></i> Готов к анализу</span><button type="button" class="delete-dataset" (click)="deleteDataset()">Удалить</button></div>
           </div>
 
           <div class="metrics" aria-label="Сводка датасета">
@@ -92,21 +95,24 @@
           </div>
 
           <section class="analysis-card" aria-labelledby="analysis-heading">
-            <div class="analysis-heading"><div><p class="eyebrow">AI Analyst</p><h3 id="analysis-heading">Спросите данные</h3></div><span>Structured output</span></div>
+            <div class="analysis-heading"><div><p class="eyebrow">AI Analyst</p><h3 id="analysis-heading">Вопрос к данным</h3></div><span>Проверяемый анализ</span></div>
             <div class="question-row">
               <textarea [formControl]="questionControl" rows="2" placeholder="Например: почему выручка снизилась в августе?"></textarea>
               <button type="button" class="analysis-action" (click)="analyze()" [disabled]="isAnalyzing()">
-                {{ isAnalyzing() ? 'Анализируем…' : 'Получить ответ' }}
+                @if (isAnalyzing()) { <span class="button-spinner" aria-hidden="true"></span><span>Анализируем…</span> } @else { <span>Получить ответ</span> }
               </button>
             </div>
-            <p class="analysis-note">Ответ строится по schema и preview текущего датасета. Выводы ограничены доступным контекстом.</p>
+            <p class="analysis-note">Агент получает сводку всего датасета, затем формирует короткий ответ с ограничениями.</p>
             @if (analysis(); as result) {
               <div class="analysis-result">
-                <p class="analysis-summary">{{ result.content.summary }}</p>
+                <p class="analysis-summary"><strong>Вывод.</strong> {{ result.content.summary }}</p>
                 <div class="analysis-columns">
                   <section><h4>Ключевые наблюдения</h4><ul>@for (finding of result.content.key_findings; track finding) { <li>{{ finding }}</li> }</ul></section>
                   @if (result.content.limitations.length > 0) { <section><h4>Ограничения</h4><ul class="limitations">@for (limitation of result.content.limitations; track limitation) { <li>{{ limitation }}</li> }</ul></section> }
                 </div>
+                @if (result.analysis_trace?.length) {
+                  <section class="analysis-trace"><h4>Ход анализа</h4><ol>@for (step of result.analysis_trace; track step.tool) { <li><strong>{{ traceLabel(step.tool) }}</strong><span>{{ step.summary }}</span></li> }</ol></section>
+                }
                 <p class="analysis-meta">{{ result.provider }} · {{ result.model }} · {{ result.usage.input_tokens + result.usage.output_tokens }} токенов</p>
               </div>
             }

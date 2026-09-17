@@ -18,8 +18,14 @@ class TokenUsage(BaseModel):
     output_tokens: int = Field(ge=0)
 
 
+class AnalysisTraceStep(BaseModel):
+    tool: str
+    summary: str
+
+
 class AnalysisResponse(BaseModel):
     content: AnalysisContent
     provider: str
     model: str
     usage: TokenUsage
+    analysis_trace: list[AnalysisTraceStep] = Field(default_factory=list, max_length=5)

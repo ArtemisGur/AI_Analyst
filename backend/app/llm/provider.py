@@ -1,8 +1,10 @@
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import Protocol
 
+from app.agent.tools import ExecutedTool
 from app.datasets.schemas import DatasetResponse
-from app.llm.schemas import AnalysisContent, TokenUsage
+from app.llm.schemas import AnalysisContent, AnalysisTraceStep, TokenUsage
 
 
 class LLMConfigurationError(Exception):
@@ -18,11 +20,15 @@ class GeneratedAnalysis:
     content: AnalysisContent
     model: str
     usage: TokenUsage
+    analysis_trace: list[AnalysisTraceStep] = field(default_factory=list)
 
 
 class LLMProvider(Protocol):
     provider_name: str
 
     async def analyze_dataset(
-        self, dataset: DatasetResponse, question: str
+        self,
+        dataset: DatasetResponse,
+        question: str,
+        execute_tool: Callable[[str, str], ExecutedTool] | None = None,
     ) -> GeneratedAnalysis: ...

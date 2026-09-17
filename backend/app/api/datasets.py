@@ -89,3 +89,17 @@ def get_dataset(dataset_id: UUID, session: Session = Depends(get_session)) -> Da
     if dataset is None:
         raise HTTPException(404, "Датасет не найден")
     return response(dataset)
+
+
+@router.delete("/{dataset_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_dataset(dataset_id: UUID, session: Session = Depends(get_session)) -> None:
+    dataset = session.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(404, "Датасет не найден")
+    try:
+        Path(dataset.storage_path).unlink(missing_ok=True)
+        session.delete(dataset)
+        session.commit()
+    except (OSError, SQLAlchemyError):
+        session.rollback()
+        raise HTTPException(503, "Не удалось удалить датасет") from None

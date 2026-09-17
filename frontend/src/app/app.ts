@@ -33,6 +33,7 @@ interface DatasetAnalysis {
   provider: string;
   model: string;
   usage: { input_tokens: number; output_tokens: number };
+  analysis_trace?: Array<{ tool: string; summary: string }>;
 }
 
 @Component({
@@ -52,6 +53,7 @@ export class App implements OnInit {
   protected readonly questionControl = new FormControl('', { nonNullable: true });
   protected readonly analysis = signal<DatasetAnalysis | null>(null);
   protected readonly isAnalyzing = signal(false);
+  protected readonly navigationCollapsed = signal(false);
 
   constructor(private readonly http: HttpClient) {}
 
@@ -106,6 +108,15 @@ export class App implements OnInit {
     });
   }
 
+  protected deleteDataset(): void {
+    const dataset = this.selectedDataset();
+    if (!dataset || !confirm(`Удалить датасет «${dataset.original_filename}»?`)) return;
+    this.http.delete(`/api/datasets/${dataset.id}`).subscribe({
+      next: () => { this.datasets.update(items => items.filter(item => item.id !== dataset.id)); this.selectedDataset.set(null); this.analysis.set(null); },
+      error: error => this.error.set(this.messageFor(error))
+    });
+  }
+
   protected valueFor(row: Dataset['preview'][number], column: string): string | number | boolean | null {
     return row[column] ?? null;
   }
@@ -140,6 +151,10 @@ export class App implements OnInit {
     if (normalized.includes('float') || normalized.includes('double')) return 'Число';
     if (normalized.includes('bool')) return 'Да / нет';
     return 'Текст';
+  }
+
+  protected traceLabel(tool: string): string {
+    return tool === 'dataset_summary' ? 'Сводка датасета' : 'Проверка данных';
   }
 
   private loadDatasets(): void {
