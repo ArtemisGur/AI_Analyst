@@ -92,6 +92,15 @@ export class App implements OnInit {
     return row[column] ?? null;
   }
 
+  protected typeLabel(dtype: string): string {
+    const normalized = dtype.toLowerCase();
+    if (normalized.includes('datetime')) return 'Дата и время';
+    if (normalized.includes('int')) return 'Целое число';
+    if (normalized.includes('float') || normalized.includes('double')) return 'Число';
+    if (normalized.includes('bool')) return 'Да / нет';
+    return 'Текст';
+  }
+
   private loadDatasets(): void {
     this.http.get<DatasetSummary[]>('/api/datasets').subscribe({
       next: datasets => {

@@ -94,7 +94,7 @@
           <section class="section-block">
             <div class="section-heading"><div><p class="eyebrow">Структура</p><h3>Определённая схема</h3></div><span class="section-note">Типы определены автоматически</span></div>
             <div class="schema-grid">@for (column of dataset.schema_metadata; track column.name) {
-              <article><strong>{{ column.name }}</strong><span>{{ column.dtype }}</span><small [class.has-missing]="column.missing_count > 0">Пропусков: {{ column.missing_count }}</small></article>
+              <article><strong>{{ column.name }}</strong><span>{{ typeLabel(column.dtype) }}</span><small [class.has-missing]="column.missing_count > 0">Пропусков: {{ column.missing_count }}</small></article>
             }</div>
           </section>
 
