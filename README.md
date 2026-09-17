@@ -4,16 +4,17 @@ AI Analyst — веб-приложение для аналитики бизне�
 
 ## Запуск локально
 
-1. Скопируйте `.env.example` в `.env` и задайте собственный пароль PostgreSQL для локальной среды.
-2. Запустите стек:
+1. Запустите из PowerShell:
 
    ```powershell
-   docker compose up --build
+   .\scripts\start.ps1
    ```
 
-3. Откройте `http://localhost:4200`. Frontend обращается к `/api/health` через Nginx, который проксирует запрос в FastAPI. Эндпоинт также доступен напрямую: `http://localhost:8000/api/health`.
+   Скрипт создаст `.env` из `.env.example` при первом запуске. Задайте собственный пароль PostgreSQL в `.env` до публикации проекта.
 
-Остановить сервисы можно командой `docker compose down`. Добавляйте флаг `--volumes` только если намеренно хотите удалить локальные данные PostgreSQL и загруженные файлы.
+2. Откройте `http://localhost:4200`. Frontend обращается к `/api/health` через Nginx, который проксирует запрос в FastAPI. Эндпоинт также доступен напрямую: `http://localhost:8000/api/health`.
+
+Остановить сервисы можно командой `./scripts/stop.ps1`. Добавляйте флаг `--volumes` к Docker Compose только если намеренно хотите удалить локальные данные PostgreSQL и загруженные файлы.
 
 ## Проверка без Docker
 
