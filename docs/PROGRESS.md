@@ -8,13 +8,13 @@ Stage 1 — Foundation завершён и проверен. Работает Do
 Angular → `/api/health` → FastAPI → PostgreSQL connectivity check.
 
 Контейнеры остаются запущенными локально: frontend на `http://localhost:4200`, backend на `http://localhost:8000`.
-Текущий этап разработки: Stage 2 — Dataset ingestion, ещё не начат.
+Текущий этап разработки: Stage 2 — Dataset ingestion, начат и не завершён.
 
 ## С чего продолжить
 
 1. Прочитать `AGENTS.md` и этот журнал, проверить `git status` и запущенные контейнеры: `docker compose ps`.
-2. Начать только Stage 2: ограниченный CSV/XLSX upload, validation, parsing, schema detection и preview API/UI.
-3. Сначала определить явные API-контракты и модель данных dataset; не переходить к LLM, agent или SQL tool.
+2. Завершить Stage 2: проверить и подключить ограниченный CSV/XLSX upload, validation, parsing, schema detection и preview API/UI.
+3. Сначала завершить явные API-контракты и модель данных dataset; не переходить к LLM, agent или SQL tool.
 
 Запуск: `docker compose up --build`. Остановка: `docker compose down`.
 
@@ -94,6 +94,12 @@ Angular → `/api/health` → FastAPI → PostgreSQL connectivity check.
 - Backend test выдаёт два upstream deprecation warning от Starlette/TestClient; тест проходит, код проекта не использует deprecated API напрямую.
 
 Точка остановки: Stage 1 завершён. Следующий небольшой этап — Stage 2: CSV/XLSX upload, schema detection и preview.
+
+### 2026-09-17 — Stage 2: Dataset ingestion (в работе)
+
+Уже добавлены, но ещё не проверены и не закоммичены: PostgreSQL-модель и Alembic migration для datasets, API-контуры загрузки и списка датасетов, безопасное чтение CSV/XLSX с размерным лимитом, нормализация имён колонок и сохранение preview/schema metadata.
+
+Точка продолжения: завершить UI загрузки и preview, выполнить migration в Docker, добавить тесты parsing/upload API, затем собрать и проверить стек до commit/push.
 
 ## Формат следующих записей
 

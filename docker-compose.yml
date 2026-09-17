@@ -17,11 +17,14 @@ services:
       context: ./backend
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ai_analyst}:${POSTGRES_PASSWORD:-change-me-for-local-development}@postgres:5432/${POSTGRES_DB:-ai_analyst}
+      UPLOAD_DIR: /data/uploads
     depends_on:
       postgres:
         condition: service_healthy
     ports:
       - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - dataset-uploads:/data/uploads
   frontend:
     build:
       context: .
@@ -33,3 +36,4 @@ services:
       - "${FRONTEND_PORT:-4200}:80"
 volumes:
   postgres-data:
+  dataset-uploads:
