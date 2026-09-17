@@ -29,6 +29,10 @@ interface AnalysisContent {
 }
 
 interface DatasetAnalysis {
+  id: string;
+  dataset_id: string;
+  question: string;
+  created_at: string;
   content: AnalysisContent;
   provider: string;
   model: string;
@@ -40,7 +44,7 @@ interface DatasetAnalysis {
   selector: 'app-root',
   imports: [ReactiveFormsModule],
   templateUrl: './app.html',
-  styleUrl: './app.scss'
+  styleUrls: ['./app.scss', './analysis-history.scss']
 })
 export class App implements OnInit {
   protected readonly health = signal<'checking' | 'healthy' | 'unavailable'>('checking');
@@ -54,6 +58,55 @@ export class App implements OnInit {
   protected readonly analysis = signal<DatasetAnalysis | null>(null);
   protected readonly isAnalyzing = signal(false);
   protected readonly navigationCollapsed = signal(false);
+  protected readonly history = signal<DatasetAnalysis[]>([]);
+  protected readonly historyLoading = signal(false);
+  protected readonly historyError = signal<string | null>(null);
+  protected readonly historyHasMore = signal(false);
+  private selectionId: string | null = null;
+  private historyRequest = 0;
+
+  protected formatDate(value: string): string {
+    return new Intl.DateTimeFormat('ru-RU', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(value));
+  }
+
+  protected loadHistory(append = false): void {
+    const id = this.selectedDataset()?.id;
+    if (!id || (append && this.historyLoading())) return;
+    const request = ++this.historyRequest;
+    this.historyLoading.set(true);
+    this.historyError.set(null);
+    const offset = append ? this.history().length : 0;
+    this.http.get<DatasetAnalysis[]>(`/api/datasets/${id}/analyses?limit=20&offset=${offset}`).subscribe({
+      next: rows => {
+        if (this.selectionId !== id || request !== this.historyRequest) return;
+        this.history.set(append ? [...this.history(), ...rows] : rows);
+        this.historyHasMore.set(rows.length === 20);
+        this.historyLoading.set(false);
+      },
+      error: () => {
+        if (this.selectionId !== id || request !== this.historyRequest) return;
+        this.historyError.set('Не удалось загрузить историю.');
+        this.historyLoading.set(false);
+      }
+    });
+  }
+
+  protected exportAnalysis(item: DatasetAnalysis): void {
+    const text = [
+      '# Анализ данных', '', `Дата: ${this.formatDate(item.created_at)}`,
+      `Датасет: ${this.selectedDataset()?.original_filename ?? ''}`, '',
+      '## Вопрос', '', item.question, '', '## Вывод', '', item.content.summary, '',
+      '## Ключевые наблюдения', ...item.content.key_findings.map(value => `- ${value}`), '',
+      '## Ограничения', ...item.content.limitations.map(value => `- ${value}`), '',
+      '## Ход анализа', ...(item.analysis_trace ?? []).map(step => `- ${this.traceLabel(step.tool)}: ${step.summary}`)
+    ].join('\n');
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `analysis-${item.created_at.slice(0, 10)}-${item.id}.md`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 
   constructor(private readonly http: HttpClient) {}
 
@@ -87,6 +140,11 @@ export class App implements OnInit {
       next: dataset => {
         this.datasets.update(items => [dataset, ...items]);
         this.selectedDataset.set(dataset);
+        this.selectionId = dataset.id;
+        this.history.set([]);
+        this.historyLoading.set(false);
+        this.historyHasMore.set(false);
+        this.historyError.set(null);
         this.analysis.set(null);
         this.fileControl.reset();
         this.isUploading.set(false);
@@ -100,19 +158,37 @@ export class App implements OnInit {
 
   protected selectDataset(dataset: DatasetSummary): void {
     if (this.selectedDataset()?.id === dataset.id) return;
+    this.selectionId = dataset.id;
+    this.selectedDataset.set(null);
+    this.history.set([]);
+    this.historyLoading.set(false);
+    this.historyHasMore.set(false);
+    this.historyError.set(null);
     this.error.set(null);
     this.analysis.set(null);
     this.http.get<Dataset>(`/api/datasets/${dataset.id}`).subscribe({
-      next: value => this.selectedDataset.set(value),
+      next: value => {
+        if (this.selectionId !== dataset.id) return;
+        this.selectedDataset.set(value);
+        this.loadHistory();
+      },
       error: error => this.error.set(this.messageFor(error))
     });
   }
 
   protected deleteDataset(): void {
     const dataset = this.selectedDataset();
-    if (!dataset || !confirm(`Удалить датасет «${dataset.original_filename}»?`)) return;
+    if (!dataset || !confirm(`Удалить датасет «${dataset.original_filename}» и его историю анализов?`)) return;
     this.http.delete(`/api/datasets/${dataset.id}`).subscribe({
-      next: () => { this.datasets.update(items => items.filter(item => item.id !== dataset.id)); this.selectedDataset.set(null); this.analysis.set(null); },
+      next: () => {
+        this.datasets.update(items => items.filter(item => item.id !== dataset.id));
+        if (this.selectionId === dataset.id) {
+          this.selectionId = null;
+          this.selectedDataset.set(null);
+          this.analysis.set(null);
+          this.history.set([]);
+        }
+      },
       error: error => this.error.set(this.messageFor(error))
     });
   }
@@ -124,7 +200,7 @@ export class App implements OnInit {
   protected analyze(): void {
     const dataset = this.selectedDataset();
     const question = this.questionControl.value.trim();
-    if (!dataset) return;
+    if (!dataset || this.isAnalyzing()) return;
     if (question.length < 3) {
       this.error.set('Задайте вопрос длиной не менее трёх символов.');
       return;
@@ -134,7 +210,10 @@ export class App implements OnInit {
     this.analysis.set(null);
     this.http.post<DatasetAnalysis>(`/api/datasets/${dataset.id}/analysis`, { question }).subscribe({
       next: analysis => {
-        this.analysis.set(analysis);
+        if (this.selectedDataset()?.id === dataset.id) {
+          this.analysis.set(analysis);
+          this.loadHistory();
+        }
         this.isAnalyzing.set(false);
       },
       error: error => {
@@ -154,7 +233,7 @@ export class App implements OnInit {
   }
 
   protected traceLabel(tool: string): string {
-    return tool === 'dataset_summary' ? 'Сводка датасета' : 'Проверка данных';
+    return tool === 'dataset_summary' ? 'Сводка датасета' : tool === 'group_by_metric' ? 'Группировка по метрике' : 'Проверка данных';
   }
 
   private loadDatasets(): void {

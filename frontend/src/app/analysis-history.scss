@@ -1,0 +1,24 @@
+.history-section { margin: 28px 0; padding: 24px; border: 1px solid #e4e7ee; border-radius: 18px; background: #f8fafc; }
+.history-list { display: grid; gap: 12px; margin: 18px 0; }
+.history-item { width: 100%; text-align: left; color: #273247; background: white; border: 1px solid #e4e7ee; border-radius: 12px; overflow-wrap: anywhere; }
+.history-item summary { display: grid; gap: 9px; padding: 20px; cursor: pointer; list-style: none; border-radius: 12px; }
+.history-item summary::-webkit-details-marker { display: none; }
+.history-item:hover, .history-item[open] { border-color: #8870dd; box-shadow: 0 4px 16px #7962ba12; }
+.history-item summary:focus-visible { outline: 3px solid #8870dd; outline-offset: 2px; }
+.history-item .collapse-label, .history-item[open] .expand-label, .history-item[open] .history-preview { display: none; }
+.history-item[open] .collapse-label { display: block; }
+.history-answer { padding: 20px; border-top: 1px solid #e4e7ee; }
+.history-item time, .saved-heading time { font-size: 12px; color: #64748b; }
+.history-item strong { font-size: 15px; line-height: 1.5; }
+.history-preview { font-size: 14px; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.history-item small { color: #7559bb; }
+.history-empty { color: #64748b; line-height: 1.7; }
+.saved-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.saved-question { font-size: 18px; font-weight: 600; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.history-export { padding: 8px 12px; background: white; color: #654ba3; border: 1px solid #ddd5ee; border-radius: 8px; cursor: pointer; }
+.analysis-summary, .analysis-columns li { white-space: pre-wrap; overflow-wrap: anywhere; }
+.analysis-summary { font-size: 15px; line-height: 1.75; }
+.analysis-columns { grid-template-columns: 1fr; }
+.analysis-columns ul { font-size: 14px; line-height: 1.75; }
+.analysis-trace { font-size: 13px; line-height: 1.65; }
+.analysis-trace li { margin-top: 10px; }

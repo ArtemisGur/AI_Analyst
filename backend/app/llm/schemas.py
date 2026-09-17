@@ -1,3 +1,6 @@
+from datetime import datetime
+from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -10,6 +13,7 @@ class AnalysisContent(BaseModel):
 
 
 class AnalysisRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
     question: str = Field(min_length=3, max_length=1_000)
 
 
@@ -29,3 +33,10 @@ class AnalysisResponse(BaseModel):
     model: str
     usage: TokenUsage
     analysis_trace: list[AnalysisTraceStep] = Field(default_factory=list, max_length=5)
+
+
+class SavedAnalysis(AnalysisResponse):
+    id: UUID
+    dataset_id: UUID
+    question: str
+    created_at: datetime

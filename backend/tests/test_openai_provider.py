@@ -66,3 +66,76 @@ def test_relaymodels_uses_chat_completions_with_json_schema(monkeypatch):
     assert request["response_format"]["type"] == "json_schema"
     assert result.usage.input_tokens == 11
     assert result.usage.output_tokens == 7
+
+
+def test_agent_multiple_steps_and_budget(monkeypatch):
+    import pytest
+
+    from app.agent.tools import ExecutedTool
+    from app.llm.provider import LLMProviderError
+
+    requests = []
+    repeat = False
+
+    class Completions:
+        async def create(self, **kwargs):
+            requests.append(kwargs)
+            number = len(requests)
+            calls = (
+                [
+                    SimpleNamespace(
+                        id=str(number),
+                        function=SimpleNamespace(name="dataset_summary", arguments="{}"),
+                    )
+                ]
+                if repeat or number < 3
+                else []
+            )
+            return SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        message=SimpleNamespace(
+                            tool_calls=calls,
+                            content='{"summary":"Done","key_findings":["Fact"],"limitations":[]}',
+                        )
+                    )
+                ],
+                usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5),
+            )
+
+    class Client:
+        def __init__(self, **kwargs):
+            self.chat = SimpleNamespace(completions=Completions())
+
+    monkeypatch.setattr("app.llm.openai_provider.AsyncOpenAI", Client)
+    provider = OpenAIProvider(Settings(openai_api_key=SecretStr("test"), openai_base_url=None))
+    dataset = DatasetResponse(
+        id=uuid4(),
+        name="test",
+        original_filename="test.csv",
+        row_count=1,
+        column_count=1,
+        created_at=datetime.now(),
+        schema_metadata=[],
+        preview=[],
+    )
+    executed = []
+
+    def tool(name, args):
+        executed.append(name)
+        return ExecutedTool(name=name, result={"rows": 1}, trace_summary="Verified")
+
+    result = asyncio.run(provider.analyze_dataset(dataset, "Inspect", tool))
+    assert len(result.analysis_trace) == 2
+    assert result.usage.input_tokens == 30
+    assert requests[0]["tool_choice"] == "required"
+    assert requests[1]["tool_choice"] == "auto"
+    assert requests[1]["messages"][2].tool_calls[0].id == "1"
+    requests.clear()
+    executed.clear()
+    repeat = True
+    with pytest.raises(LLMProviderError, match="budget"):
+        asyncio.run(provider.analyze_dataset(dataset, "Inspect", tool))
+    assert len(requests) == 6
+    assert len(executed) == 5
+    assert requests[-1]["tool_choice"] == "none"

@@ -46,12 +46,15 @@ describe('App', () => {
       schema_metadata: [], preview: []
     });
 
+    http.expectOne('/api/datasets/dataset-id/analyses?limit=20&offset=0').flush([]);
     const app = fixture.componentInstance as any;
     app.questionControl.setValue('Что происходит с выручкой?');
     app.analyze();
     const request = http.expectOne('/api/datasets/dataset-id/analysis');
     expect(request.request.body).toEqual({ question: 'Что происходит с выручкой?' });
     request.flush({
+      id: 'analysis-id', dataset_id: 'dataset-id', question: 'Что происходит с выручкой?',
+      created_at: '2026-09-17T10:00:00Z',
       content: {
         summary: 'Выручка требует дополнительной проверки.',
         key_findings: ['В preview есть пропуск.'],
@@ -59,8 +62,10 @@ describe('App', () => {
       },
       provider: 'openai', model: 'gpt-5.5', usage: { input_tokens: 10, output_tokens: 5 }
     });
+    http.expectOne('/api/datasets/dataset-id/analyses?limit=20&offset=0').flush([app.analysis()]);
     fixture.detectChanges();
     await fixture.whenStable();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.history-item')?.textContent).toContain('Что происходит с выручкой?');
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Ключевые наблюдения');
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('В preview есть пропуск.');
   });

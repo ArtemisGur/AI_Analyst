@@ -77,7 +77,14 @@ def test_analysis_returns_structured_response(client):
         json={"question": "Что происходит с выручкой?"},
     )
     assert response.status_code == 200
-    assert response.json() == {
+    saved = response.json()
+    assert saved["dataset_id"] == str(dataset_id)
+    assert saved["created_at"].endswith("Z")
+    history = test_client.get(f"/api/datasets/{dataset_id}/analyses")
+    assert history.json() == [saved]
+    assert {
+        k: v for k, v in saved.items() if k not in {"id", "dataset_id", "question", "created_at"}
+    } == {
         "content": {
             "summary": "В preview есть пропуск выручки.",
             "key_findings": ["Одна строка содержит пропуск."],
@@ -121,3 +128,42 @@ def test_analysis_requires_configured_provider(client):
     response = test_client.post(f"/api/datasets/{dataset_id}/analysis", json={"question": "Тест"})
     assert response.status_code == 503
     assert response.json() == {"detail": "AI-провайдер не настроен"}
+
+
+def test_history_pagination_and_unknown_dataset(client):
+    test_client, dataset_id = client
+    url = f"/api/datasets/{dataset_id}"
+    first = test_client.post(
+        url + "/analysis", json={"question": "Что происходит с выручкой?"}
+    ).json()
+    second = test_client.post(
+        url + "/analysis", json={"question": "Что происходит с выручкой?"}
+    ).json()
+    assert test_client.get(url + "/analyses?limit=1").json()[0]["id"] == second["id"]
+    assert test_client.get(url + "/analyses?limit=1&offset=1").json()[0]["id"] == first["id"]
+    assert test_client.get(f"/api/datasets/{uuid4()}/analyses").status_code == 404
+    assert test_client.get(url + "/analyses?limit=101").status_code == 422
+
+
+def test_failed_analysis_does_not_create_history(client):
+    test_client, dataset_id = client
+    app.dependency_overrides[get_llm_provider] = lambda: None
+    test_client.post(f"/api/datasets/{dataset_id}/analysis", json={"question": "test"})
+    assert test_client.get(f"/api/datasets/{dataset_id}/analyses").json() == []
+
+
+def test_history_storage_failure_is_reported(client, monkeypatch):
+    from sqlalchemy.exc import SQLAlchemyError
+
+    test_client, dataset_id = client
+
+    def fail_commit(self):
+        raise SQLAlchemyError("private storage detail")
+
+    monkeypatch.setattr(Session, "commit", fail_commit)
+    response = test_client.post(
+        f"/api/datasets/{dataset_id}/analysis", json={"question": "Что происходит с выручкой?"}
+    )
+    assert response.status_code == 503
+    assert "private" not in response.text
+    assert test_client.get(f"/api/datasets/{dataset_id}/analyses").json() == []

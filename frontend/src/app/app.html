@@ -13,11 +13,10 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>
         Датасеты
       </a>
-      <span class="nav-item disabled" aria-disabled="true">
+      <a class="nav-item" href="#history-heading">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5m0 14h16M7 16l4-4 3 2 4-6"/></svg>
-        Анализы
-        <small>Скоро</small>
-      </span>
+        История анализов
+      </a>
     </nav>
 
     <div class="navigation-footer">
@@ -97,25 +96,58 @@
           <section class="analysis-card" aria-labelledby="analysis-heading">
             <div class="analysis-heading"><div><p class="eyebrow">AI Analyst</p><h3 id="analysis-heading">Вопрос к данным</h3></div><span>Проверяемый анализ</span></div>
             <div class="question-row">
-              <textarea [formControl]="questionControl" rows="2" placeholder="Например: почему выручка снизилась в августе?"></textarea>
+              <textarea [formControl]="questionControl" rows="2" maxlength="1000" aria-label="Вопрос к данным" placeholder="Например: почему выручка снизилась в августе?"></textarea>
               <button type="button" class="analysis-action" (click)="analyze()" [disabled]="isAnalyzing()">
                 @if (isAnalyzing()) { <span class="button-spinner" aria-hidden="true"></span><span>Анализируем…</span> } @else { <span>Получить ответ</span> }
               </button>
             </div>
-            <p class="analysis-note">Агент получает сводку всего датасета, затем формирует короткий ответ с ограничениями.</p>
+            <p class="analysis-note">Агент выбирает инструменты и проверяет данные. Готовые ответы автоматически сохраняются в истории.</p>
             @if (analysis(); as result) {
               <div class="analysis-result">
+                <div class="saved-heading"><time [attr.datetime]="result.created_at">{{ formatDate(result.created_at) }}</time><button type="button" class="history-export" (click)="exportAnalysis(result)">Скачать Markdown ↓</button></div>
+                <p class="saved-question">{{ result.question }}</p>
                 <p class="analysis-summary"><strong>Вывод.</strong> {{ result.content.summary }}</p>
                 <div class="analysis-columns">
                   <section><h4>Ключевые наблюдения</h4><ul>@for (finding of result.content.key_findings; track finding) { <li>{{ finding }}</li> }</ul></section>
                   @if (result.content.limitations.length > 0) { <section><h4>Ограничения</h4><ul class="limitations">@for (limitation of result.content.limitations; track limitation) { <li>{{ limitation }}</li> }</ul></section> }
                 </div>
                 @if (result.analysis_trace?.length) {
-                  <section class="analysis-trace"><h4>Ход анализа</h4><ol>@for (step of result.analysis_trace; track step.tool) { <li><strong>{{ traceLabel(step.tool) }}</strong><span>{{ step.summary }}</span></li> }</ol></section>
+                  <section class="analysis-trace"><h4>Ход анализа</h4><ol>@for (step of result.analysis_trace; track $index) { <li><strong>{{ traceLabel(step.tool) }}</strong><span>{{ step.summary }}</span></li> }</ol></section>
                 }
                 <p class="analysis-meta">{{ result.provider }} · {{ result.model }} · {{ result.usage.input_tokens + result.usage.output_tokens }} токенов</p>
               </div>
             }
+          </section>
+
+          <section class="history-section" aria-labelledby="history-heading">
+            <div class="section-heading"><div><p class="eyebrow">Сохранённые ответы</p><h3 id="history-heading">История анализов</h3></div><span class="section-note">Время на вашем устройстве</span></div>
+            @if (historyError()) { <p role="alert">{{ historyError() }} <button type="button" (click)="loadHistory()">Повторить</button></p> }
+            @if (historyLoading() && !history().length) { <p class="history-empty">Загружаем историю…</p> }
+            @else if (!history().length && !historyError()) { <p class="history-empty">Здесь появится ваш первый анализ. Вопрос и ответ сохранятся вместе с датой.</p> }
+            <div class="history-list">
+              @for (item of history(); track item.id) {
+                <details class="history-item">
+                  <summary>
+                    <time [attr.datetime]="item.created_at">{{ formatDate(item.created_at) }}</time>
+                    <strong>{{ item.question }}</strong>
+                    <span class="history-preview">{{ item.content.summary }}</span>
+                    <small class="expand-label">Развернуть ответ ↓</small><small class="collapse-label">Свернуть ответ ↑</small>
+                  </summary>
+                  <div class="history-answer">
+                    <p class="analysis-summary"><strong>Вывод.</strong> {{ item.content.summary }}</p>
+                    <div class="analysis-columns">
+                      <section><h4>Ключевые наблюдения</h4><ul>@for (finding of item.content.key_findings; track $index) { <li>{{ finding }}</li> }</ul></section>
+                      @if (item.content.limitations.length) { <section><h4>Ограничения</h4><ul class="limitations">@for (limitation of item.content.limitations; track $index) { <li>{{ limitation }}</li> }</ul></section> }
+                    </div>
+                    @if (item.analysis_trace?.length) {
+                      <section class="analysis-trace"><h4>Ход анализа</h4><ol>@for (step of item.analysis_trace; track $index) { <li><strong>{{ traceLabel(step.tool) }}</strong><span>{{ step.summary }}</span></li> }</ol></section>
+                    }
+                    <div class="saved-heading"><p class="analysis-meta">{{ item.provider }} · {{ item.model }} · {{ item.usage.input_tokens + item.usage.output_tokens }} токенов</p><button type="button" class="history-export" (click)="exportAnalysis(item)">Скачать Markdown ↓</button></div>
+                  </div>
+                </details>
+              }
+            </div>
+            @if (historyHasMore()) { <button type="button" class="history-export" [disabled]="historyLoading()" (click)="loadHistory(true)">{{ historyLoading() ? 'Загружаем…' : 'Показать ещё' }}</button> }
           </section>
 
           <section class="section-block">
