@@ -10,7 +10,7 @@ $envExample = Join-Path $projectRoot '.env.example'
 
 if (-not (Test-Path -LiteralPath $envFile)) {
     Copy-Item -LiteralPath $envExample -Destination $envFile
-    Write-Host 'Создан .env из .env.example. Перед публикацией измените пароль PostgreSQL.' -ForegroundColor Yellow
+    Write-Host 'Created .env from .env.example. Change the PostgreSQL password before deployment.' -ForegroundColor Yellow
 }
 
 $wslProjectRoot = '/mnt/c/Users/love-/OneDrive/Documents/ChatGPT/AI Analyst'
@@ -19,15 +19,20 @@ if (-not $Foreground) {
     $composeCommand += ' -d'
 }
 
-Write-Host 'Запускаю AI Analyst…' -ForegroundColor Cyan
+Write-Host 'Starting AI Analyst...' -ForegroundColor Cyan
+wsl -u root -- bash -lc "cd '$wslProjectRoot' && docker compose down --remove-orphans"
+if ($LASTEXITCODE -ne 0) {
+    throw "Docker Compose cleanup exited with code $LASTEXITCODE."
+}
+
 wsl -u root -- bash -lc "cd '$wslProjectRoot' && $composeCommand"
 if ($LASTEXITCODE -ne 0) {
-    throw "Docker Compose завершился с кодом $LASTEXITCODE."
+    throw "Docker Compose exited with code $LASTEXITCODE."
 }
 
 if (-not $Foreground) {
     Write-Host ''
-    Write-Host 'AI Analyst запущен:' -ForegroundColor Green
+    Write-Host 'AI Analyst is running:' -ForegroundColor Green
     Write-Host '  Frontend: http://localhost:4200'
     Write-Host '  API:      http://localhost:8000/docs'
 }
