@@ -9,7 +9,7 @@ Angular → `/api/health` → FastAPI → PostgreSQL connectivity check.
 
 Контейнеры остаются запущенными локально: frontend на `http://localhost:4200`, backend на `http://localhost:8000`.
 Stage 2 — Dataset ingestion завершён и проверен. Работает загрузка CSV/XLSX, определение схемы, preview и русский UI.
-Stage 3 — Basic AI завершён в коде и проверен без внешнего ключа. Реализован один OpenAI provider, строгий structured output и русский интерфейс вопроса к выбранному датасету.
+Stage 3 — Basic AI завершён и проверен в живом сценарии через RelayModels. Реализован OpenAI-совместимый provider, строгий structured output и русский интерфейс вопроса к выбранному датасету.
 Текущий этап разработки: Stage 4 — Agent.
 
 ## С чего продолжить
@@ -99,7 +99,7 @@ Stage 3 — Basic AI завершён в коде и проверен без в�
 ### 2026-09-17 — Stage 3: Basic AI
 
 Реализовано:
-- Добавлен изолированный контракт `LLMProvider` и первая реализация `OpenAIProvider`; ключ и модель считываются только из переменных окружения backend.
+- Добавлен изолированный контракт `LLMProvider` и первая реализация `OpenAIProvider`; ключ, model и опциональный OpenAI-совместимый base URL считываются только из переменных окружения backend.
 - Добавлен `POST /api/datasets/{dataset_id}/analysis`. Он передаёт провайдеру вопрос, схему и ограниченный preview выбранного датасета, а клиенту возвращает типизированные `summary`, `key_findings`, `limitations` и usage.
 - Вызов OpenAI использует Responses API, строгую JSON Schema и `store=false`. Инструкции запрещают следовать командам из содержимого датасета и требуют отвечать по-русски с явными ограничениями.
 - В Angular добавлена карточка вопроса и результата AI-анализа для выбранного датасета. Ключ не передаётся в браузер.
@@ -107,13 +107,14 @@ Stage 3 — Basic AI завершён в коде и проверен без в�
 
 Проверено:
 - `backend/.venv/Scripts/ruff.exe check backend` — успешно.
-- `backend/.venv/Scripts/python.exe -m pytest backend/tests -q` — 18 passed. Тесты покрывают успешный структурированный ответ, несуществующий датасет, валидацию вопроса, ошибку provider и отсутствие конфигурации.
+- `backend/.venv/Scripts/python.exe -m pytest backend/tests -q` — 19 passed. Добавлена проверка RelayModels-ветки с `chat/completions`, JSON Schema и корректным чтением usage.
 - `docker compose build frontend` — Angular tests 3/3 passed и production build успешны.
-- Реальный запрос к OpenAI намеренно не выполнялся: локальный `OPENAI_API_KEY` не задан. Без ключа API возвращает контролируемый HTTP 503, без раскрытия конфигурации.
+- Контролируемая проверка без ключа возвращает HTTP 503, без раскрытия конфигурации.
+- Живой запрос к RelayModels с `OPENAI_BASE_URL=https://api.relaymodels.com/v1` и моделью `gpt-5.6-sol` успешен: API вернул структурированный ответ с выводом, наблюдениями, ограничениями и usage.
 
 Решения и ограничения:
 - Это Basic AI без Agent Loop и вычислительных инструментов: модель видит только metadata и preview, поэтому выводы ограничены этим контекстом.
-- Для живой проверки пользователь задаёт ключ в локальном `.env`; ключ нельзя добавлять в коммиты или отправлять в чат.
+- RelayModels использует OpenAI-совместимый `chat/completions`; прямой OpenAI-режим продолжает использовать Responses API. Для обоих ключ остаётся в локальном `.env` и не добавляется в коммиты или чат.
 
 Точка продолжения: Stage 4 — Agent. Первый небольшой шаг: безопасный инструмент `dataset_summary` и контракт вызова инструмента.
 
