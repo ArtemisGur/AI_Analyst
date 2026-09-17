@@ -5,8 +5,9 @@ Revises:
 Create Date: 2026-09-17
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "20260917_01"
 down_revision = None
@@ -26,7 +27,12 @@ def upgrade() -> None:
         sa.Column("column_count", sa.Integer(), nullable=False),
         sa.Column("schema_metadata", sa.JSON(), nullable=False),
         sa.Column("preview", sa.JSON(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
 

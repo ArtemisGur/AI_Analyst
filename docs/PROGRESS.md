@@ -8,13 +8,14 @@ Stage 1 — Foundation завершён и проверен. Работает Do
 Angular → `/api/health` → FastAPI → PostgreSQL connectivity check.
 
 Контейнеры остаются запущенными локально: frontend на `http://localhost:4200`, backend на `http://localhost:8000`.
-Текущий этап разработки: Stage 2 — Dataset ingestion, начат и не завершён.
+Stage 2 — Dataset ingestion завершён и проверен. Работает загрузка CSV/XLSX, определение схемы, preview и русский UI.
+Текущий этап разработки: Stage 3 — Basic AI ещё не начат.
 
 ## С чего продолжить
 
 1. Прочитать `AGENTS.md` и этот журнал, проверить `git status` и запущенные контейнеры: `docker compose ps`.
-2. Завершить Stage 2: проверить и подключить ограниченный CSV/XLSX upload, validation, parsing, schema detection и preview API/UI.
-3. Сначала завершить явные API-контракты и модель данных dataset; не переходить к LLM, agent или SQL tool.
+2. Следующий небольшой этап: выбрать и изолировать первого LLM provider, задать явный structured contract для простого ответа без Agent Loop.
+3. Не переходить к tool calling, SQL или Python sandbox до завершения Basic AI.
 
 Запуск: `docker compose up --build`. Остановка: `docker compose down`.
 
@@ -22,7 +23,7 @@ Angular → `/api/health` → FastAPI → PostgreSQL connectivity check.
 
 - [x] Сохранение исходного контекста и настройка журнала работы.
 - [x] Stage 1 — Foundation: Angular 21, FastAPI, PostgreSQL, Docker Compose.
-- [ ] Stage 2 — Dataset ingestion: CSV/XLSX, определение схемы, preview.
+- [x] Stage 2 — Dataset ingestion: CSV/XLSX, определение схемы, preview.
 - [ ] Stage 3 — Basic AI: один LLM provider, structured output.
 - [ ] Stage 4 — Agent: tool calling и собственный Agent Loop.
 - [ ] Stage 5 — Analysis Tools: SQL, статистика, изолированный Python sandbox.
@@ -50,6 +51,49 @@ Angular → `/api/health` → FastAPI → PostgreSQL connectivity check.
 - Результат push проверяется по совпадению локального HEAD и удалённой ветки.
 
 ## История работы
+
+### 2026-09-17 — Сверка перед продолжением Stage 2
+
+- Проверены текущие файлы и git: до обновления журнала рабочее дерево чистое; заготовка ingestion уже сохранена в commit `4ddbf96`, скрипты запуска — в `85c387c` и `7c5241d`. Более ранняя запись о незакоммиченных файлах Stage 2 устарела.
+- В коде есть модель Dataset, migration, POST/GET `/api/datasets`, parsing и preview первых 20 строк. Это заготовка, завершённость и корректность пока не подтверждены тестами.
+- Frontend пока показывает только health; тесты backend покрывают только health. Типизированные metadata-контракты, обработка ошибок хранения и полноценная проверка ingestion ещё требуют работы.
+- Следующий небольшой шаг (запланирован): закончить backend-контракт загрузки и получения dataset, проверить parsing/validation/storage тестами; затем подключить UI и проверить полный сценарий в Docker.
+- В этой сессии код не менялся; build и тесты не запускались.
+
+### 2026-09-17 — Stage 2: backend ingestion
+
+Реализовано:
+- Добавлены явные Pydantic-контракты для полного dataset и облегчённого списка, а также `GET /api/datasets/{id}` с 404 для отсутствующего dataset.
+- Upload API принимает только CSV/XLSX, очищает имя файла, ограничивает исходный размер, строки, колонки и распакованный размер XLSX; CSV читается в UTF-8/UTF-8 BOM/CP1251.
+- Колонки нормализуются с устранением дублей; response содержит schema, missing counts и первые 20 строк preview. Пустые datasets, некорректные файлы и бесконечные числа отклоняются.
+- При ошибке хранилища транзакция откатывается, а уже созданный upload-файл удаляется. В list API добавлены limit/offset.
+- Скрипты запуска больше не содержат абсолютный путь к локальной пользовательской папке: путь вычисляется относительно каталога проекта. `.env`, логи, uploads и Ruff cache исключены из Git.
+
+Проверено:
+- `backend/.venv/Scripts/ruff.exe check backend` — успешно.
+- `backend/.venv/Scripts/python.exe -m pytest backend/tests -q` — 13 passed. Остаются внешние предупреждения Starlette/TestClient и Pandas при намеренно переданном `inf`.
+- `docker compose up -d --build backend`, `GET /api/health` — успешно; живой `POST /api/datasets` с CSV вернул schema и preview. Созданный smoke-dataset и его файл затем удалены.
+
+Точка продолжения: реализовать Angular UI datasets, затем выполнить финальную сквозную проверку Stage 2 и только после неё подготовить чистый commit/push.
+
+### 2026-09-17 — Stage 2: frontend и завершение
+
+Реализовано:
+- Angular UI на русском языке: выбор CSV/XLSX, загрузка, русские состояния и ошибки, список dataset, schema и таблица preview.
+- Добавлен безопасный синтетический файл `samples/sales_demo.csv` для проверки загрузки. Он содержит 18 строк продаж, даты и один пропуск; реальных пользовательских данных в репозитории нет.
+- В API локализованы ошибки upload/storage. JSON-поля и коды ответов оставлены стабильными для frontend-контракта.
+
+Проверено:
+- `backend/.venv/Scripts/ruff.exe check backend` — успешно.
+- `backend/.venv/Scripts/python.exe -m pytest backend/tests -q` — 14 passed; включены CSV, валидный XLSX, даты, лимиты, preview и ошибки.
+- `docker compose build frontend` — Angular tests 2/2 passed и production build успешны.
+- `docker compose up -d` — все контейнеры запущены, PostgreSQL healthy; health endpoint успешен через Nginx. Ошибка загрузки `.txt` через `http://localhost:4200/api/datasets` возвращается по-русски.
+
+Решения и ограничения:
+- Даты CSV распознаются для явных форматов `YYYY-MM-DD`, `YYYY/MM/DD`, `DD.MM.YYYY` и `DD-MM-YYYY`; неоднозначные строки остаются строками, чтобы не исказить исходные данные.
+- Локальные `.env`, логи, uploads и cache исключены из Git. Скрипты запуска не содержат пользовательского имени или абсолютного пути.
+
+Точка остановки: Stage 2 завершён. Следующий небольшой этап — Stage 3: Basic AI с одним провайдером и structured output, без Agent Loop.
 
 ### 2026-09-17 — Сохранение контекста
 

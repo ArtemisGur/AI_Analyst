@@ -11,3 +11,5 @@ frontend/.angular/
 .DS_Store
 Thumbs.db
 *.log
+.ruff_cache/
+uploads/

@@ -13,7 +13,9 @@ if (-not (Test-Path -LiteralPath $envFile)) {
     Write-Host 'Created .env from .env.example. Change the PostgreSQL password before deployment.' -ForegroundColor Yellow
 }
 
-$wslProjectRoot = '/mnt/c/Users/love-/OneDrive/Documents/ChatGPT/AI Analyst'
+$wslProjectRoot = (wsl -- wslpath -a "$projectRoot").Trim()
+if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve project path in WSL.' }
+$wslProjectRoot = $wslProjectRoot.Replace("'", "'\''")
 $composeCommand = 'docker compose up --build'
 if (-not $Foreground) {
     $composeCommand += ' -d'

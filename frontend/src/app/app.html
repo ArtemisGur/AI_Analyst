@@ -1,10 +1,47 @@
 <main>
-  <p class="eyebrow">AI Analyst</p>
-  <h1>Ask your data better questions.</h1>
-  <p class="description">The foundation is online. Dataset ingestion and AI analysis will follow in the next stages.</p>
-  <p class="health" [class.ready]="health() === 'healthy'" [class.error]="health() === 'unavailable'">
-    @if (health() === 'checking') { Checking API and PostgreSQL… }
-    @else if (health() === 'healthy') { API and PostgreSQL are connected }
-    @else { API or PostgreSQL is unavailable }
-  </p>
+  <header>
+    <p class="eyebrow">AI Analyst</p>
+    <h1>Датасеты</h1>
+    <p class="description">Загрузите CSV или XLSX, чтобы посмотреть определённую схему и первые строки данных.</p>
+    <p class="health" [class.ready]="health() === 'healthy'" [class.error]="health() === 'unavailable'">
+      @if (health() === 'checking') { Проверяем API и PostgreSQL… }
+      @else if (health() === 'healthy') { API и PostgreSQL подключены }
+      @else { API или PostgreSQL недоступны }
+    </p>
+  </header>
+  <section class="upload-card" aria-labelledby="upload-heading">
+    <div><h2 id="upload-heading">Добавить датасет</h2><p>Поддерживаются файлы CSV и XLSX до 20 МБ.</p></div>
+    <div class="upload-actions">
+      <input id="dataset-file" type="file" accept=".csv,.xlsx" (change)="onFileSelected($event)">
+      <button type="button" (click)="upload()" [disabled]="isUploading()">{{ isUploading() ? 'Загрузка…' : 'Загрузить датасет' }}</button>
+    </div>
+  </section>
+  @if (error(); as errorMessage) { <p class="message error" role="alert">{{ errorMessage }}</p> }
+  <section class="workspace">
+    <aside aria-label="Uploaded datasets">
+      <h2>Ваши датасеты</h2>
+      @if (isLoading()) { <p class="muted">Загружаем список датасетов…</p> }
+      @else if (datasets().length === 0) { <p class="muted">Датасетов пока нет. Загрузите файл, чтобы начать.</p> }
+      @else {
+        <ul>@for (dataset of datasets(); track dataset.id) {
+          <li><button type="button" class="dataset-button" [class.selected]="selectedDataset()?.id === dataset.id" (click)="selectDataset(dataset)">
+            <strong>{{ dataset.name }}</strong><span>{{ dataset.row_count }} строк · {{ dataset.column_count }} столбцов</span>
+          </button></li>
+        }</ul>
+      }
+    </aside>
+    <section class="detail" aria-live="polite">
+      @if (selectedDataset(); as dataset) {
+        <div class="detail-heading"><div><p class="eyebrow">Предпросмотр датасета</p><h2>{{ dataset.original_filename }}</h2></div><p>{{ dataset.row_count }} строк · {{ dataset.column_count }} столбцов</p></div>
+        <h3>Определённая схема</h3>
+        <div class="schema-grid">@for (column of dataset.schema_metadata; track column.name) {
+          <article><strong>{{ column.name }}</strong><span>{{ column.dtype }}</span><small>Пропусков: {{ column.missing_count }}</small></article>
+        }</div>
+        <h3>Первые {{ dataset.preview.length }} строк</h3>
+        <div class="table-wrap"><table><thead><tr>@for (column of dataset.schema_metadata; track column.name) { <th>{{ column.name }}</th> }</tr></thead><tbody>
+          @for (row of dataset.preview; track $index) { <tr>@for (column of dataset.schema_metadata; track column.name) { <td>{{ valueFor(row, column.name) ?? '—' }}</td> }</tr> }
+        </tbody></table></div>
+      } @else { <div class="empty-state"><h2>Выберите или загрузите датасет</h2><p>Здесь появятся его схема и предпросмотр.</p></div> }
+    </section>
+  </section>
 </main>
