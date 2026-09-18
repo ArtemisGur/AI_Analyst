@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.agent.charts import ChartSpec
 from app.agent.python_sandbox import PythonResult
 from app.agent.statistics import StatisticsResult
 
@@ -34,6 +35,7 @@ class AnalysisTraceStep(BaseModel):
     statistics: StatisticsResult | None = None
     python_code: str | None = Field(default=None, max_length=6000)
     python_result: PythonResult | None = None
+    chart: ChartSpec | None = None
 
 
 class AnalysisResponse(BaseModel):

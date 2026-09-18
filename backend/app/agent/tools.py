@@ -7,6 +7,7 @@ from pandas import isna
 from pandas.api.types import is_numeric_dtype
 from pydantic import BaseModel
 
+from app.agent.charts import ChartSpec, create_chart
 from app.agent.python_sandbox import PythonResult, PythonSandboxError, execute_python
 from app.agent.sql_tool import SQLToolError, execute_sql
 from app.agent.statistics import StatisticsResult, calculate_statistics
@@ -63,6 +64,7 @@ class ExecutedTool(BaseModel):
     statistics: StatisticsResult | None = None
     python_code: str | None = None
     python_result: PythonResult | None = None
+    chart: ChartSpec | None = None
 
 
 class ToolExecutionError(Exception):
@@ -80,6 +82,7 @@ def execute_dataset_tool(dataset: Dataset, name: str, arguments: str) -> Execute
         "execute_sql",
         "column_statistics",
         "execute_python",
+        "create_chart",
     }:
         raise ToolExecutionError("Недопустимый инструмент или аргументы")
     if name == "execute_sql":
@@ -127,6 +130,20 @@ def execute_dataset_tool(dataset: Dataset, name: str, arguments: str) -> Execute
         )
     except (OSError, HTTPException) as error:
         raise ToolExecutionError("Файл датасета недоступен") from error
+    if name == "create_chart":
+        try:
+            chart = create_chart(frame, parsed_arguments)
+        except (ValueError, TypeError, ArithmeticError) as error:
+            raise ToolExecutionError("Проверьте поля и параметры графика") from error
+        return ExecutedTool(
+            name=name,
+            result=chart,
+            chart=chart,
+            trace_summary=(
+                f"Построен график «{chart.title}» по {chart.source_rows} строкам. "
+                + ("Показаны первые 24 точки." if chart.truncated else "")
+            ),
+        )
     if name == "column_statistics":
         try:
             statistics = calculate_statistics(frame, parsed_arguments)

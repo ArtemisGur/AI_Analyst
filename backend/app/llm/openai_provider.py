@@ -5,6 +5,7 @@ from typing import Any
 from openai import APIError, AsyncOpenAI
 from starlette.concurrency import run_in_threadpool
 
+from app.agent.charts import CREATE_CHART_TOOL
 from app.agent.python_sandbox import PYTHON_TOOL
 from app.agent.sql_tool import SQL_TOOL
 from app.agent.statistics import STATISTICS_TOOL
@@ -136,6 +137,7 @@ class OpenAIProvider:
                         SQL_TOOL,
                         STATISTICS_TOOL,
                         PYTHON_TOOL,
+                        CREATE_CHART_TOOL,
                     ],
                     tool_choice="required" if turn == 0 else ("none" if turn == 5 else "auto"),
                     parallel_tool_calls=False,
@@ -210,6 +212,7 @@ class OpenAIProvider:
                         statistics=executed.statistics,
                         python_code=executed.python_code,
                         python_result=executed.python_result,
+                        chart=executed.chart,
                     )
                 )
         except (APIError, ToolExecutionError, ValueError, TypeError, IndexError) as error:
