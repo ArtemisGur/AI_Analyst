@@ -21,13 +21,38 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.5}
-    depends_on:
-      postgres:
-        condition: service_healthy
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - dataset-uploads:/data/uploads
+      - sandbox-socket:/run/ai-analyst
+    depends_on:
+      postgres:
+        condition: service_healthy
+      sandbox:
+        condition: service_started
+  sandbox:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.sandbox
+    network_mode: "none"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    volumes:
+      - sandbox-socket:/run/ai-analyst
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 32
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+    init: true
   frontend:
     build:
       context: .
@@ -40,3 +65,4 @@ services:
 volumes:
   postgres-data:
   dataset-uploads:
+  sandbox-socket:

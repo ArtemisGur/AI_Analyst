@@ -7,6 +7,7 @@ from pandas import isna
 from pandas.api.types import is_numeric_dtype
 from pydantic import BaseModel
 
+from app.agent.python_sandbox import PythonResult, PythonSandboxError, execute_python
 from app.agent.sql_tool import SQLToolError, execute_sql
 from app.agent.statistics import StatisticsResult, calculate_statistics
 from app.datasets.models import Dataset
@@ -60,6 +61,8 @@ class ExecutedTool(BaseModel):
     trace_summary: str
     sql_query: str | None = None
     statistics: StatisticsResult | None = None
+    python_code: str | None = None
+    python_result: PythonResult | None = None
 
 
 class ToolExecutionError(Exception):
@@ -76,6 +79,7 @@ def execute_dataset_tool(dataset: Dataset, name: str, arguments: str) -> Execute
         "group_by_metric",
         "execute_sql",
         "column_statistics",
+        "execute_python",
     }:
         raise ToolExecutionError("Недопустимый инструмент или аргументы")
     if name == "execute_sql":
@@ -91,6 +95,21 @@ def execute_dataset_tool(dataset: Dataset, name: str, arguments: str) -> Execute
                 f"SQL-анализ по {result['source_rows']} строкам. "
                 f"Получено строк результата: {result['returned_rows']}."
                 + (" Результат ограничен первыми 100 строками." if result["truncated"] else "")
+            ),
+        )
+    if name == "execute_python":
+        try:
+            python_result = execute_python(dataset.storage_path, parsed_arguments)
+        except (PythonSandboxError, ValueError) as error:
+            raise ToolExecutionError("Python-код отклонён или превысил лимиты") from error
+        return ExecutedTool(
+            name=name,
+            result=python_result,
+            python_code=parsed_arguments["code"],
+            python_result=python_result,
+            trace_summary=(
+                f"Python-анализ выполнен по {python_result.row_count} строкам и "
+                f"{python_result.column_count} колонкам за {python_result.execution_ms} мс."
             ),
         )
     if name == "dataset_summary" and parsed_arguments:

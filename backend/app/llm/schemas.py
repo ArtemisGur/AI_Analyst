@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.agent.python_sandbox import PythonResult
 from app.agent.statistics import StatisticsResult
 
 
@@ -31,6 +32,8 @@ class AnalysisTraceStep(BaseModel):
     sql_query: str | None = Field(default=None, max_length=8000)
     status: Literal["completed", "failed"] = "completed"
     statistics: StatisticsResult | None = None
+    python_code: str | None = Field(default=None, max_length=6000)
+    python_result: PythonResult | None = None
 
 
 class AnalysisResponse(BaseModel):

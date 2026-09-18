@@ -38,8 +38,10 @@ interface DatasetAnalysis {
   provider: string;
   model: string;
   usage: { input_tokens: number; output_tokens: number };
-  analysis_trace?: Array<{ tool: string; summary: string; sql_query?: string | null; statistics?: StatisticsResult | null }>;
+  analysis_trace?: Array<{ tool: string; summary: string; sql_query?: string | null; statistics?: StatisticsResult | null; python_code?: string | null; python_result?: PythonResult | null }>;
 }
+
+interface PythonResult { result: unknown; row_count: number; column_count: number; execution_ms: number; }
 
 @Component({
   selector: 'app-root',
@@ -100,7 +102,7 @@ export class App implements OnInit {
       '## Ключевые наблюдения', ...item.content.key_findings.map(value => `- ${value}`), '',
       '## Ограничения', ...item.content.limitations.map(value => `- ${value}`), '',
       '## Ход анализа', ...(item.analysis_trace ?? []).map(step =>
-        `- ${this.traceLabel(step.tool)}: ${step.summary}` + (step.sql_query ? `\n\n\`\`\`sql\n${step.sql_query}\n\`\`\`\n` : '') + (step.statistics ? statisticsMarkdown(step.statistics) : ''))
+        `- ${this.traceLabel(step.tool)}: ${step.summary}` + (step.sql_query ? `\n\n\`\`\`sql\n${step.sql_query}\n\`\`\`\n` : '') + (step.python_code ? `\n\n\`\`\`python\n${step.python_code}\n\`\`\`\n\nРезультат:\n\n\`\`\`json\n${this.pythonResultJson(step.python_result)}\n\`\`\`\n` : '') + (step.statistics ? statisticsMarkdown(step.statistics) : ''))
     ].join('\n');
     const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }));
     const link = document.createElement('a');
@@ -237,7 +239,12 @@ export class App implements OnInit {
   protected traceLabel(tool: string): string {
     if (tool === 'execute_sql') return 'SQL-анализ';
     if (tool === 'column_statistics') return 'Статистика и выбросы';
+    if (tool === 'execute_python') return 'Python-анализ';
     return tool === 'dataset_summary' ? 'Сводка датасета' : tool === 'group_by_metric' ? 'Группировка по метрике' : 'Проверка данных';
+  }
+
+  protected pythonResultJson(result: PythonResult | null | undefined): string {
+    return JSON.stringify(result?.result ?? null, null, 2);
   }
 
   private loadDatasets(): void {
