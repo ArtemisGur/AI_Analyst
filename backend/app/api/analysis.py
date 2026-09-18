@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC
 from uuid import UUID
 
@@ -16,6 +17,7 @@ from app.llm.provider import LLMConfigurationError, LLMProvider, LLMProviderErro
 from app.llm.schemas import AnalysisJobResponse, AnalysisRequest, AnalysisResponse, SavedAnalysis
 
 router = APIRouter(prefix="/datasets", tags=["analysis"])
+logger = logging.getLogger(__name__)
 
 
 def saved_response(record: AnalysisRecord) -> SavedAnalysis:
@@ -50,10 +52,20 @@ async def run_job(job_id: UUID, provider: LLMProvider | None) -> None:
         job.status = "running"
         session.commit()
         try:
-            generated = await provider.analyze_dataset(
-                response(dataset), job.question,
-                lambda name, arguments: execute_dataset_tool(dataset, name, arguments),
-            )
+            generated = None
+            for attempt in range(2):
+                try:
+                    generated = await provider.analyze_dataset(
+                        response(dataset), job.question,
+                        lambda name, arguments: execute_dataset_tool(dataset, name, arguments),
+                    )
+                    break
+                except LLMProviderError:
+                    if attempt == 1:
+                        raise
+                    logger.warning("Analysis job %s failed; retrying provider request", job.id)
+            if generated is None:
+                raise LLMProviderError("Provider produced no result")
             result = AnalysisResponse(
                 content=generated.content, provider=provider.provider_name, model=generated.model,
                 usage=generated.usage, analysis_trace=generated.analysis_trace,
