@@ -17,7 +17,19 @@ export interface ChartSpec {
   truncated: boolean;
 }
 
+export function chronologicalChart(chart: ChartSpec): ChartSpec {
+  if (!chart.x.every(label => /^\d{4}-\d{2}(?:-\d{2})?(?:T.*)?$/.test(label))) return chart;
+  const order = chart.x.map((label, index) => ({ label, index })).sort((a, b) => a.label.localeCompare(b.label));
+  if (order.every(({ index }, target) => index === target)) return chart;
+  return {
+    ...chart,
+    x: order.map(({ label }) => label),
+    series: chart.series.map(series => ({ ...series, values: order.map(({ index }) => series.values[index]) })),
+  };
+}
+
 export function chartOptions(chart: ChartSpec): EChartsOption {
+  chart = chronologicalChart(chart);
   return {
     animation: false,
     aria: { enabled: true },
@@ -40,6 +52,7 @@ export function chartOptions(chart: ChartSpec): EChartsOption {
 }
 
 export function chartMarkdown(chart: ChartSpec): string {
+  chart = chronologicalChart(chart);
   const rows = chart.x.map((label, index) => [label, ...chart.series.map(series => series.values[index] ?? '')]);
   return [
     '', `### График: ${chart.title}`, '',

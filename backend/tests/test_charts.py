@@ -81,3 +81,25 @@ def test_chart_month_requires_datetime_column():
                 "time_granularity": "month",
             },
         )
+
+
+def test_chart_sorts_iso_month_text_labels_chronologically():
+    import pandas as pd
+
+    chart = create_chart(
+        pd.DataFrame(
+            {
+                "month": ["2026-07", "2026-08", "2026-04", "2026-06", "2026-05"],
+                "revenue": [10, 20, 30, 40, 50],
+            }
+        ),
+        {
+            "type": "line",
+            "title": "Выручка по месяцам",
+            "group_by": "month",
+            "metrics": ["revenue"],
+        },
+    )
+
+    assert chart.x == ["2026-04", "2026-05", "2026-06", "2026-07", "2026-08"]
+    assert chart.series[0].values == [30.0, 50.0, 40.0, 10.0, 20.0]

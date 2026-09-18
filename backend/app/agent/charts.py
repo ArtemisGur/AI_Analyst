@@ -1,6 +1,7 @@
 """Verified, bounded chart specifications computed from the selected dataset."""
 
 import math
+import re
 from typing import Literal
 
 import pandas as pd
@@ -79,6 +80,8 @@ def create_chart(frame: pd.DataFrame, arguments: dict) -> ChartSpec:
     values = grouped.sum(min_count=1) if request.aggregation == "sum" else grouped.mean()
     if request.time_granularity == "month":
         values = values.sort_index()
+    elif is_chronological_label_index(values.index):
+        values = values.sort_index()
     else:
         values = values.sort_values(
             request.metrics[0], ascending=request.order == "asc", na_position="last"
@@ -102,3 +105,19 @@ def finite_number(value: object) -> float | None:
     if pd.isna(value) or not math.isfinite(float(value)):
         return None
     return float(value)
+
+
+def is_chronological_label_index(index: pd.Index) -> bool:
+    """Recognise ISO-like date labels so timeline charts remain chronological.
+
+    Dataset authors often store a month bucket such as ``2026-08`` as text rather
+    than a datetime column. The chart tool should still keep those values on a
+    timeline instead of ordering them by a metric.
+    """
+    labels = index.dropna()
+    if labels.empty or not all(isinstance(label, str) for label in labels):
+        return False
+    return all(
+        re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?", label)
+        for label in labels
+    )
