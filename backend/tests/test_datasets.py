@@ -56,6 +56,19 @@ def test_upload_persists_and_can_be_retrieved(client):
     assert client.get("/api/datasets?offset=1").json() == []
 
 
+def test_rows_endpoint_paginates_the_full_dataset(client):
+    result = upload(client, b"region,revenue\nNorth,12\nSouth,13\nWest,14\n")
+    dataset_id = result.json()["id"]
+    first = client.get(f"/api/datasets/{dataset_id}/rows?limit=2").json()
+    second = client.get(f"/api/datasets/{dataset_id}/rows?limit=2&offset=2").json()
+    assert first == {
+        "total_rows": 3,
+        "offset": 0,
+        "rows": [{"region": "North", "revenue": 12}, {"region": "South", "revenue": 13}],
+    }
+    assert second["rows"] == [{"region": "West", "revenue": 14}]
+
+
 @pytest.mark.parametrize(
     ("name", "content", "status"),
     [

@@ -24,3 +24,9 @@ class DatasetSummary(BaseModel):
 class DatasetResponse(DatasetSummary):
     schema_metadata: list[ColumnMetadata]
     preview: list[dict[str, str | int | float | bool | None]]
+
+
+class DatasetRows(BaseModel):
+    total_rows: int
+    offset: int
+    rows: list[dict[str, str | int | float | bool | None]]

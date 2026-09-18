@@ -42,6 +42,12 @@ interface DatasetAnalysis {
   analysis_trace?: Array<{ tool: string; summary: string; sql_query?: string | null; statistics?: StatisticsResult | null; python_code?: string | null; python_result?: PythonResult | null; chart?: ChartSpec | null }>;
 }
 
+interface DatasetRows {
+  total_rows: number;
+  offset: number;
+  rows: Array<Record<string, string | number | boolean | null>>;
+}
+
 interface PythonResult { result: unknown; row_count: number; column_count: number; execution_ms: number; }
 
 @Component({
@@ -62,6 +68,12 @@ export class App implements OnInit {
   protected readonly analysis = signal<DatasetAnalysis | null>(null);
   protected readonly isAnalyzing = signal(false);
   protected readonly navigationCollapsed = signal(false);
+  protected readonly activeTab = signal<'analysis' | 'structure' | 'data'>('analysis');
+  protected readonly tableModalOpen = signal(false);
+  protected readonly tableRows = signal<DatasetRows | null>(null);
+  protected readonly tableLoading = signal(false);
+  protected readonly tableError = signal<string | null>(null);
+  protected readonly tablePageSize = 100;
   protected readonly history = signal<DatasetAnalysis[]>([]);
   protected readonly historyLoading = signal(false);
   protected readonly historyError = signal<string | null>(null);
@@ -151,6 +163,7 @@ export class App implements OnInit {
         this.historyHasMore.set(false);
         this.historyError.set(null);
         this.analysis.set(null);
+        this.activeTab.set('analysis');
         this.fileControl.reset();
         this.isUploading.set(false);
       },
@@ -171,6 +184,9 @@ export class App implements OnInit {
     this.historyError.set(null);
     this.error.set(null);
     this.analysis.set(null);
+    this.activeTab.set('analysis');
+    this.tableModalOpen.set(false);
+    this.tableRows.set(null);
     this.http.get<Dataset>(`/api/datasets/${dataset.id}`).subscribe({
       next: value => {
         if (this.selectionId !== dataset.id) return;
@@ -192,14 +208,43 @@ export class App implements OnInit {
           this.selectedDataset.set(null);
           this.analysis.set(null);
           this.history.set([]);
+          this.tableModalOpen.set(false);
         }
       },
       error: error => this.error.set(this.messageFor(error))
     });
   }
 
-  protected valueFor(row: Dataset['preview'][number], column: string): string | number | boolean | null {
+  protected valueFor(row: Record<string, string | number | boolean | null>, column: string): string | number | boolean | null {
     return row[column] ?? null;
+  }
+
+  protected openTableModal(): void {
+    this.tableModalOpen.set(true);
+    this.loadTableRows(0);
+  }
+
+  protected closeTableModal(): void {
+    this.tableModalOpen.set(false);
+  }
+
+  protected loadTableRows(offset: number): void {
+    const dataset = this.selectedDataset();
+    if (!dataset || this.tableLoading()) return;
+    this.tableLoading.set(true);
+    this.tableError.set(null);
+    this.http.get<DatasetRows>(
+      `/api/datasets/${dataset.id}/rows?limit=${this.tablePageSize}&offset=${offset}`
+    ).subscribe({
+      next: page => {
+        if (this.selectedDataset()?.id === dataset.id) this.tableRows.set(page);
+        this.tableLoading.set(false);
+      },
+      error: error => {
+        this.tableError.set(this.messageFor(error));
+        this.tableLoading.set(false);
+      }
+    });
   }
 
   protected analyze(): void {

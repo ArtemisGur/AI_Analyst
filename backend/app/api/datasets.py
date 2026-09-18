@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.datasets.models import Dataset
-from app.datasets.schemas import DatasetResponse, DatasetSummary
-from app.datasets.service import dataset_metadata, parse_dataset, read_upload
+from app.datasets.schemas import DatasetResponse, DatasetRows, DatasetSummary
+from app.datasets.service import dataset_metadata, json_value, parse_dataset, read_upload
 from app.db.session import engine
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
@@ -89,6 +89,32 @@ def get_dataset(dataset_id: UUID, session: Session = Depends(get_session)) -> Da
     if dataset is None:
         raise HTTPException(404, "Датасет не найден")
     return response(dataset)
+
+
+@router.get("/{dataset_id}/rows", response_model=DatasetRows)
+def get_dataset_rows(
+    dataset_id: UUID,
+    session: Session = Depends(get_session),
+    limit: int = Query(100, ge=1, le=250),
+    offset: int = Query(0, ge=0),
+) -> DatasetRows:
+    dataset = session.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(404, "Датасет не найден")
+    try:
+        path = Path(dataset.storage_path)
+        frame = parse_dataset(path.read_bytes(), path.suffix.lower())
+    except (OSError, HTTPException):
+        raise HTTPException(503, "Датасет временно недоступен") from None
+    page = frame.iloc[offset : offset + limit]
+    return DatasetRows(
+        total_rows=len(frame),
+        offset=offset,
+        rows=[
+            {column: json_value(value) for column, value in row.items()}
+            for row in page.to_dict(orient="records")
+        ],
+    )
 
 
 @router.delete("/{dataset_id}", status_code=status.HTTP_204_NO_CONTENT)

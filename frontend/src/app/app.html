@@ -5,25 +5,25 @@
     </button>
     <a class="brand" href="/" aria-label="AI Analyst">
       <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-      <span>AI Analyst</span>
+      <span class="brand-label">AI Analyst</span>
     </a>
 
     <nav>
       <a class="nav-item active" href="/" aria-current="page">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>
-        Датасеты
+        <span class="nav-label">Датасеты</span>
       </a>
       <a class="nav-item" href="#history-heading">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5m0 14h16M7 16l4-4 3 2 4-6"/></svg>
-        История анализов
+        <span class="nav-label">История анализов</span>
       </a>
     </nav>
 
     <div class="navigation-footer">
       <span class="status-dot" [class.online]="health() === 'healthy'"></span>
-      @if (health() === 'checking') { Проверяем сервисы… }
+      <span class="nav-footer-label">@if (health() === 'checking') { Проверяем сервисы… }
       @else if (health() === 'healthy') { Сервисы подключены }
-      @else { Сервисы недоступны }
+      @else { Сервисы недоступны }</span>
     </div>
   </aside>
 
@@ -93,6 +93,13 @@
             <article><span>Предпросмотр</span><strong>{{ dataset.preview.length }}</strong><small>первых строк</small></article>
           </div>
 
+          <nav class="workspace-tabs" aria-label="Разделы датасета">
+            <button type="button" [class.active]="activeTab() === 'analysis'" (click)="activeTab.set('analysis')">Анализ</button>
+            <button type="button" [class.active]="activeTab() === 'structure'" (click)="activeTab.set('structure')">Структура <span>{{ dataset.column_count }}</span></button>
+            <button type="button" [class.active]="activeTab() === 'data'" (click)="activeTab.set('data')">Данные <span>{{ dataset.row_count }}</span></button>
+          </nav>
+
+          @if (activeTab() === 'analysis') {
           <section class="analysis-card" aria-labelledby="analysis-heading">
             <div class="analysis-heading"><div><p class="eyebrow">AI Analyst</p><h3 id="analysis-heading">Вопрос к данным</h3></div><span>Проверяемый анализ</span></div>
             <div class="question-row">
@@ -149,20 +156,25 @@
             </div>
             @if (historyHasMore()) { <button type="button" class="history-export" [disabled]="historyLoading()" (click)="loadHistory(true)">{{ historyLoading() ? 'Загружаем…' : 'Показать ещё' }}</button> }
           </section>
+          }
 
+          @if (activeTab() === 'structure') {
           <section class="section-block">
             <div class="section-heading"><div><p class="eyebrow">Структура</p><h3>Определённая схема</h3></div><span class="section-note">Типы определены автоматически</span></div>
             <div class="schema-grid">@for (column of dataset.schema_metadata; track column.name) {
               <article><strong>{{ column.name }}</strong><span>{{ typeLabel(column.dtype) }}</span><small [class.has-missing]="column.missing_count > 0">Пропусков: {{ column.missing_count }}</small></article>
             }</div>
           </section>
+          }
 
+          @if (activeTab() === 'data') {
           <section class="section-block preview-block">
-            <div class="section-heading"><div><p class="eyebrow">Данные</p><h3>Предпросмотр</h3></div><span class="section-note">Первые {{ dataset.preview.length }} строк</span></div>
+            <div class="section-heading"><div><p class="eyebrow">Данные</p><h3>Предпросмотр</h3></div><div class="data-actions"><span class="section-note">Первые {{ dataset.preview.length }} строк</span><button type="button" class="history-export" (click)="openTableModal()">Открыть всю таблицу</button></div></div>
             <div class="table-wrap"><table><thead><tr>@for (column of dataset.schema_metadata; track column.name) { <th>{{ column.name }}</th> }</tr></thead><tbody>
               @for (row of dataset.preview; track $index) { <tr>@for (column of dataset.schema_metadata; track column.name) { <td>{{ valueFor(row, column.name) ?? '—' }}</td> }</tr> }
             </tbody></table></div>
           </section>
+          }
         } @else {
           <div class="empty-state">
             <span class="empty-visual"><i></i><i></i><i></i><i></i></span>
@@ -174,4 +186,20 @@
       </section>
     </section>
   </main>
+
+  @if (tableModalOpen() && selectedDataset(); as dataset) {
+    <div class="table-modal-backdrop" (click)="closeTableModal()" (keydown.escape)="closeTableModal()">
+      <section class="table-modal" role="dialog" aria-modal="true" [attr.aria-label]="'Таблица ' + dataset.original_filename" (click)="$event.stopPropagation()">
+        <header class="table-modal-header"><div><p class="eyebrow">Все данные</p><h2>{{ dataset.original_filename }}</h2><p>{{ dataset.row_count }} строк · {{ dataset.column_count }} столбцов</p></div><button type="button" class="modal-close" (click)="closeTableModal()" aria-label="Закрыть таблицу">×</button></header>
+        @if (tableError(); as tableErrorMessage) { <p class="message error" role="alert"><span>!</span>{{ tableErrorMessage }}</p> }
+        @if (tableLoading()) { <p class="modal-loading">Загружаем строки…</p> }
+        @else if (tableRows(); as page) {
+          <div class="table-wrap modal-table"><table><thead><tr>@for (column of dataset.schema_metadata; track column.name) { <th>{{ column.name }}</th> }</tr></thead><tbody>
+            @for (row of page.rows; track $index) { <tr>@for (column of dataset.schema_metadata; track column.name) { <td>{{ valueFor(row, column.name) ?? '—' }}</td> }</tr> }
+          </tbody></table></div>
+          <footer class="table-pagination"><span>Строки {{ page.offset + 1 }}–{{ page.offset + page.rows.length }} из {{ page.total_rows }}</span><div><button type="button" class="history-export" [disabled]="page.offset === 0" (click)="loadTableRows(page.offset - tablePageSize)">Назад</button><button type="button" class="history-export" [disabled]="page.offset + page.rows.length >= page.total_rows" (click)="loadTableRows(page.offset + tablePageSize)">Далее</button></div></footer>
+        }
+      </section>
+    </div>
+  }
 </div>
