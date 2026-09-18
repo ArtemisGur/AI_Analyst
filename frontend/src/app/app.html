@@ -13,10 +13,6 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>
         <span class="nav-label">Датасеты</span>
       </a>
-      <a class="nav-item" href="#history-heading">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5m0 14h16M7 16l4-4 3 2 4-6"/></svg>
-        <span class="nav-label">История анализов</span>
-      </a>
     </nav>
 
     <div class="navigation-footer">
@@ -154,7 +150,12 @@
                 </details>
               }
             </div>
-            @if (historyHasMore()) { <button type="button" class="history-export" [disabled]="historyLoading()" (click)="loadHistory(true)">{{ historyLoading() ? 'Загружаем…' : 'Показать ещё' }}</button> }
+            @if (history().length) {
+              <footer class="history-pagination" aria-label="Пагинация истории анализов">
+                <span>Страница {{ historyPage() + 1 }}</span>
+                <div><button type="button" class="history-export" [disabled]="historyLoading() || historyPage() === 0" (click)="loadHistory(historyPage() - 1)">Назад</button><button type="button" class="history-export" [disabled]="historyLoading() || !historyHasMore()" (click)="loadHistory(historyPage() + 1)">Далее</button></div>
+              </footer>
+            }
           </section>
           }
 

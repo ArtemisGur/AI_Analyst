@@ -78,25 +78,28 @@ export class App implements OnInit {
   protected readonly historyLoading = signal(false);
   protected readonly historyError = signal<string | null>(null);
   protected readonly historyHasMore = signal(false);
+  protected readonly historyPage = signal(0);
   private selectionId: string | null = null;
   private historyRequest = 0;
+  private readonly historyPageSize = 8;
 
   protected formatDate(value: string): string {
     return new Intl.DateTimeFormat('ru-RU', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(value));
   }
 
-  protected loadHistory(append = false): void {
+  protected loadHistory(page = 0): void {
     const id = this.selectedDataset()?.id;
-    if (!id || (append && this.historyLoading())) return;
+    if (!id || this.historyLoading() || page < 0) return;
     const request = ++this.historyRequest;
     this.historyLoading.set(true);
     this.historyError.set(null);
-    const offset = append ? this.history().length : 0;
-    this.http.get<DatasetAnalysis[]>(`/api/datasets/${id}/analyses?limit=20&offset=${offset}`).subscribe({
+    const offset = page * this.historyPageSize;
+    this.http.get<DatasetAnalysis[]>(`/api/datasets/${id}/analyses?limit=${this.historyPageSize + 1}&offset=${offset}`).subscribe({
       next: rows => {
         if (this.selectionId !== id || request !== this.historyRequest) return;
-        this.history.set(append ? [...this.history(), ...rows] : rows);
-        this.historyHasMore.set(rows.length === 20);
+        this.history.set(rows.slice(0, this.historyPageSize));
+        this.historyPage.set(page);
+        this.historyHasMore.set(rows.length > this.historyPageSize);
         this.historyLoading.set(false);
       },
       error: () => {
@@ -161,6 +164,7 @@ export class App implements OnInit {
         this.history.set([]);
         this.historyLoading.set(false);
         this.historyHasMore.set(false);
+        this.historyPage.set(0);
         this.historyError.set(null);
         this.analysis.set(null);
         this.activeTab.set('analysis');
@@ -181,6 +185,7 @@ export class App implements OnInit {
     this.history.set([]);
     this.historyLoading.set(false);
     this.historyHasMore.set(false);
+    this.historyPage.set(0);
     this.historyError.set(null);
     this.error.set(null);
     this.analysis.set(null);

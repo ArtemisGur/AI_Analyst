@@ -16,6 +16,7 @@
 .saved-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .saved-question { font-size: 18px; font-weight: 600; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .history-export { padding: 8px 12px; background: white; color: #654ba3; border: 1px solid #ddd5ee; border-radius: 8px; cursor: pointer; }
+.history-pagination { align-items: center; color: #64748b; display: flex; font-size: 12px; justify-content: space-between; margin-top: 18px; }.history-pagination div { display: flex; gap: 8px; }.history-pagination .history-export:disabled { cursor: not-allowed; opacity: .45; }
 .analysis-summary, .analysis-columns li { white-space: pre-wrap; overflow-wrap: anywhere; }
 .analysis-summary { font-size: 15px; line-height: 1.75; }
 .analysis-columns { grid-template-columns: 1fr; }

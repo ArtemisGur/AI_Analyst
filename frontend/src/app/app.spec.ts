@@ -46,7 +46,7 @@ describe('App', () => {
       schema_metadata: [], preview: []
     });
 
-    http.expectOne('/api/datasets/dataset-id/analyses?limit=20&offset=0').flush([]);
+    http.expectOne('/api/datasets/dataset-id/analyses?limit=9&offset=0').flush([]);
     const app = fixture.componentInstance as any;
     app.questionControl.setValue('Что происходит с выручкой?');
     app.analyze();
@@ -62,11 +62,40 @@ describe('App', () => {
       },
       provider: 'openai', model: 'gpt-5.5', usage: { input_tokens: 10, output_tokens: 5 }
     });
-    http.expectOne('/api/datasets/dataset-id/analyses?limit=20&offset=0').flush([app.analysis()]);
+    http.expectOne('/api/datasets/dataset-id/analyses?limit=9&offset=0').flush([app.analysis()]);
     fixture.detectChanges();
     await fixture.whenStable();
     expect((fixture.nativeElement as HTMLElement).querySelector('.history-item')?.textContent).toContain('Что происходит с выручкой?');
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Ключевые наблюдения');
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('В preview есть пропуск.');
+  });
+
+  it('shows eight saved analyses per page and requests the next offset', () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/api/health').flush({ status: 'ok', database: 'connected' });
+    http.expectOne('/api/datasets').flush([{
+      id: 'dataset-id', name: 'sales', original_filename: 'sales.csv',
+      row_count: 2, column_count: 2, created_at: '2026-01-01T00:00:00Z'
+    }]);
+    http.expectOne('/api/datasets/dataset-id').flush({
+      id: 'dataset-id', name: 'sales', original_filename: 'sales.csv',
+      row_count: 2, column_count: 2, created_at: '2026-01-01T00:00:00Z', schema_metadata: [], preview: []
+    });
+    http.expectOne('/api/datasets/dataset-id/analyses?limit=9&offset=0').flush([]);
+
+    (fixture.componentInstance as any).loadHistory(1);
+    const request = http.expectOne('/api/datasets/dataset-id/analyses?limit=9&offset=8');
+    request.flush(Array.from({ length: 9 }, (_, index) => ({
+      id: `analysis-${index}`, dataset_id: 'dataset-id', question: `Вопрос ${index}`,
+      created_at: '2026-09-18T00:00:00Z', content: { summary: 'Вывод', key_findings: [], limitations: [] },
+      provider: 'openai', model: 'test', usage: { input_tokens: 1, output_tokens: 1 }
+    })));
+
+    const app = fixture.componentInstance as any;
+    expect(app.history().length).toBe(8);
+    expect(app.historyPage()).toBe(1);
+    expect(app.historyHasMore()).toBe(true);
   });
 });
