@@ -33,3 +33,11 @@ main { grid-column: 2; margin: 0 auto; max-width: 1480px; padding: 42px 48px 60p
 @keyframes robot-signal { 50% { box-shadow: 0 0 0 4px rgb(112 144 255 / 15%); opacity: .65; } }
 @keyframes robot-blink { 0%, 45%, 48%, 100% { transform: scaleY(1); } 46%, 47% { transform: scaleY(.15); } }
 @media (prefers-reduced-motion: reduce) { .analysis-robot, .robot-antenna::after, .robot-head i { animation: none; } }
+
+.snackbar { align-items: center; animation: snackbar-in .2s ease-out; background: #253451; border-radius: 10px; bottom: 24px; box-shadow: 0 12px 30px rgb(25 39 69 / 25%); color: #fff; display: flex; gap: 10px; max-width: min(440px, calc(100vw - 32px)); padding: 12px 13px; position: fixed; right: 24px; z-index: 100; }
+.snackbar-error { background: #a94048; }
+.snackbar-icon { align-items: center; background: rgb(255 255 255 / 18%); border-radius: 50%; display: inline-flex; flex: 0 0 auto; font-size: 12px; font-weight: 800; height: 20px; justify-content: center; width: 20px; }
+.snackbar p { font-size: 13px; line-height: 1.4; margin: 0; }
+.snackbar button { background: transparent; border: 0; color: inherit; cursor: pointer; font-size: 21px; line-height: 1; margin-left: 4px; padding: 0 2px 2px; }
+@keyframes snackbar-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 680px) { .snackbar { bottom: 16px; right: 16px; } }

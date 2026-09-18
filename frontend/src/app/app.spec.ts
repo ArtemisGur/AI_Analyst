@@ -17,6 +17,19 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
+  it('shows errors in a dismissible snackbar', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance as any;
+    app.showError('AI-провайдер временно недоступен');
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('.snackbar')?.textContent)
+      .toContain('AI-провайдер временно недоступен');
+
+    app.dismissError();
+    expect(app.error()).toBeNull();
+  });
+
   it('should render the datasets workspace', async () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();

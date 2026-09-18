@@ -43,10 +43,6 @@
       </section>
     </header>
 
-    @if (error(); as errorMessage) {
-      <p class="message error" role="alert"><span>!</span>{{ errorMessage }}</p>
-    }
-
     <section class="workspace">
       <aside class="dataset-panel" aria-label="Загруженные датасеты">
         <div class="panel-heading">
@@ -206,7 +202,6 @@
     <div class="table-modal-backdrop" (click)="closeTableModal()" (keydown.escape)="closeTableModal()">
       <section class="table-modal" role="dialog" aria-modal="true" [attr.aria-label]="'Таблица ' + dataset.original_filename" (click)="$event.stopPropagation()">
         <header class="table-modal-header"><div><p class="eyebrow">Все данные</p><h2>{{ dataset.original_filename }}</h2><p>{{ dataset.row_count }} строк · {{ dataset.column_count }} столбцов</p></div><button type="button" class="modal-close" (click)="closeTableModal()" aria-label="Закрыть таблицу">×</button></header>
-        @if (tableError(); as tableErrorMessage) { <p class="message error" role="alert"><span>!</span>{{ tableErrorMessage }}</p> }
         @if (tableLoading()) { <p class="modal-loading">Загружаем строки…</p> }
         @else if (tableRows(); as page) {
           <div class="table-wrap modal-table"><table><thead><tr>@for (column of dataset.schema_metadata; track column.name) { <th>{{ column.name }}</th> }</tr></thead><tbody>
@@ -216,5 +211,13 @@
         }
       </section>
     </div>
+  }
+
+  @if (error(); as errorMessage) {
+    <aside class="snackbar snackbar-error" role="alert" aria-live="assertive">
+      <span class="snackbar-icon" aria-hidden="true">!</span>
+      <p>{{ errorMessage }}</p>
+      <button type="button" (click)="dismissError()" aria-label="Закрыть уведомление">×</button>
+    </aside>
   }
 </div>

@@ -84,6 +84,7 @@ export class App implements OnInit, OnDestroy {
   protected readonly isLoading = signal(true);
   protected readonly isUploading = signal(false);
   protected readonly error = signal<string | null>(null);
+  private errorTimer: ReturnType<typeof setTimeout> | undefined;
   protected readonly fileControl = new FormControl<File | null>(null);
   protected readonly questionControl = new FormControl('', { nonNullable: true });
   protected readonly analysis = signal<DatasetAnalysis | null>(null);
@@ -186,24 +187,26 @@ export class App implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.stopAnalysisStatus();
+    this.clearError();
   }
 
   protected onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     this.fileControl.setValue(input.files?.item(0) ?? null);
-    this.error.set(null);
+    this.clearError();
   }
 
   protected upload(): void {
     const file = this.fileControl.value;
     if (!file) {
+      this.showError('Сначала выберите файл CSV или XLSX.');
       this.error.set('Сначала выберите файл CSV или XLSX.');
       return;
     }
     const payload = new FormData();
     payload.append('file', file);
     this.isUploading.set(true);
-    this.error.set(null);
+    this.clearError();
     this.http.post<Dataset>('/api/datasets', payload).subscribe({
       next: dataset => {
         this.datasets.update(items => [dataset, ...items]);
@@ -220,7 +223,7 @@ export class App implements OnInit, OnDestroy {
         this.isUploading.set(false);
       },
       error: error => {
-        this.error.set(this.messageFor(error));
+        this.showError(this.messageFor(error));
         this.isUploading.set(false);
       }
     });
@@ -235,7 +238,7 @@ export class App implements OnInit, OnDestroy {
     this.historyTotal.set(0);
     this.historyPage.set(0);
     this.historyError.set(null);
-    this.error.set(null);
+    this.clearError();
     this.analysis.set(null);
     this.activeTab.set('analysis');
     this.tableModalOpen.set(false);
@@ -246,7 +249,7 @@ export class App implements OnInit, OnDestroy {
         this.selectedDataset.set(value);
         this.loadHistory();
       },
-      error: error => this.error.set(this.messageFor(error))
+      error: error => this.showError(this.messageFor(error))
     });
   }
 
@@ -264,7 +267,7 @@ export class App implements OnInit, OnDestroy {
           this.tableModalOpen.set(false);
         }
       },
-      error: error => this.error.set(this.messageFor(error))
+      error: error => this.showError(this.messageFor(error))
     });
   }
 
@@ -294,7 +297,7 @@ export class App implements OnInit, OnDestroy {
         this.tableLoading.set(false);
       },
       error: error => {
-        this.tableError.set(this.messageFor(error));
+        this.showError(this.messageFor(error));
         this.tableLoading.set(false);
       }
     });
@@ -305,10 +308,11 @@ export class App implements OnInit, OnDestroy {
     const question = this.questionControl.value.trim();
     if (!dataset || this.isAnalyzing()) return;
     if (question.length < 3) {
+      this.showError('Задайте вопрос длиной не менее трёх символов.');
       this.error.set('Задайте вопрос длиной не менее трёх символов.');
       return;
     }
-    this.error.set(null);
+    this.clearError();
     this.isAnalyzing.set(true);
     this.startAnalysisStatus();
     this.analysis.set(null);
@@ -322,7 +326,7 @@ export class App implements OnInit, OnDestroy {
         this.stopAnalysisStatus();
       },
       error: error => {
-        this.error.set(this.messageFor(error));
+        this.showError(this.messageFor(error));
         this.isAnalyzing.set(false);
         this.stopAnalysisStatus();
       }
@@ -373,7 +377,7 @@ export class App implements OnInit, OnDestroy {
         if (datasets[0]) this.selectDataset(datasets[0]);
       },
       error: error => {
-        this.error.set(this.messageFor(error));
+        this.showError(this.messageFor(error));
         this.isLoading.set(false);
       }
     });
@@ -394,6 +398,27 @@ export class App implements OnInit, OnDestroy {
       clearInterval(this.analysisStatusTimer);
       this.analysisStatusTimer = undefined;
     }
+  }
+
+  protected dismissError(): void {
+    this.clearError();
+  }
+
+  private showError(message: string): void {
+    if (this.errorTimer !== undefined) clearTimeout(this.errorTimer);
+    this.error.set(message);
+    this.errorTimer = setTimeout(() => {
+      this.error.set(null);
+      this.errorTimer = undefined;
+    }, 7000);
+  }
+
+  private clearError(): void {
+    if (this.errorTimer !== undefined) {
+      clearTimeout(this.errorTimer);
+      this.errorTimer = undefined;
+    }
+    this.error.set(null);
   }
 
   private messageFor(error: unknown): string {
