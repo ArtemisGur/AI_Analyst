@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     openai_base_url: str | None = None
     openai_model: str = "gpt-5.5"
     openai_fallback_model: str | None = None
-    openai_request_timeout_seconds: float = 45.0
+    openai_request_timeout_seconds: float = 300.0
     openai_tool_calling_enabled: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

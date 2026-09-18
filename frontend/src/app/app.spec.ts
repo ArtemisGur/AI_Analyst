@@ -66,7 +66,7 @@ describe('App', () => {
     expect(app.isAnalyzing()).toBe(true);
     expect(app.analysisStatus()).toBe('Ушёл думать…');
     fixture.detectChanges();
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Обычно это занимает до 1–2 минут.');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Сложный анализ может занять до 5 минут.');
     const request = http.expectOne('/api/datasets/dataset-id/analysis-jobs');
     expect(request.request.body).toEqual({ question: 'Что происходит с выручкой?' });
     request.flush({ id: 'job-id', dataset_id: 'dataset-id', question: 'Что происходит с выручкой?', status: 'queued' });

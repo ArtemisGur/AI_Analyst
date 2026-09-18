@@ -366,7 +366,7 @@ export class App implements OnInit, OnDestroy {
       if (value.status === 'completed') { localStorage.removeItem('ai-analyst-analysis-job'); this.isAnalyzing.set(false); this.stopAnalysisStatus(); if (this.selectedDataset()?.id === value.dataset_id) this.loadHistory(); if (this.analysisJobTimer) clearInterval(this.analysisJobTimer); }
       if (value.status === 'failed') { localStorage.removeItem('ai-analyst-analysis-job'); this.showError(value.error ?? 'Не удалось выполнить анализ.'); this.isAnalyzing.set(false); this.stopAnalysisStatus(); if (this.analysisJobTimer) clearInterval(this.analysisJobTimer); }
     }, error: error => { this.showError(this.messageFor(error)); } });
-    check(); this.analysisJobTimer = setInterval(check, 1500);
+    check(); this.analysisJobTimer = setInterval(check, 5000);
   }
 
   protected pythonResultJson(result: PythonResult | null | undefined): string {
