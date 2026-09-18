@@ -7,10 +7,10 @@ from pydantic import SecretStr
 
 from app.core.config import Settings
 from app.datasets.schemas import ColumnMetadata, DatasetResponse
-from app.llm.openai_provider import OpenAIProvider
+from app.llm.openai_provider import OpenAIProvider, compatible_analysis_content
 
 
-def test_relaymodels_uses_chat_completions_with_json_schema(monkeypatch):
+def test_relaymodels_uses_chat_completions_with_json_object(monkeypatch):
     captured: dict[str, object] = {}
 
     class FakeCompletions:
@@ -60,12 +60,25 @@ def test_relaymodels_uses_chat_completions_with_json_schema(monkeypatch):
     assert captured["client_options"] == {
         "api_key": "test-key",
         "base_url": "https://api.relaymodels.com/v1",
+        "timeout": 45.0,
+        "max_retries": 0,
     }
     request = captured["request"]
     assert request["model"] == "gpt-5.6-terra"
-    assert request["response_format"]["type"] == "json_schema"
+    assert request["response_format"]["type"] == "json_object"
     assert result.usage.input_tokens == 11
     assert result.usage.output_tokens == 7
+
+
+def test_compatible_analysis_content_limits_unverified_lists():
+    content = compatible_analysis_content(
+        '{"summary":"Готово","key_findings":["1","2","3","4","5","6"],'
+        '"limitations":["1","2","3","4"],"evidence":[]}'
+    )
+
+    assert content.key_findings == ["1", "2", "3", "4", "5"]
+    assert content.limitations == ["1", "2", "3"]
+    assert content.evidence == []
 
 
 def test_agent_multiple_steps_and_budget(monkeypatch):
@@ -131,12 +144,16 @@ def test_agent_multiple_steps_and_budget(monkeypatch):
     assert result.analysis_trace[0].arguments == {}
     assert result.analysis_trace[0].duration_ms >= 0
     assert result.analysis_trace[0].result_preview == '{"rows": 1}'
-    assert result.usage.input_tokens == 30
+    assert result.usage.input_tokens == 40
     assert requests[0]["tool_choice"] == "required"
     assert "column_statistics" in {t["function"]["name"] for t in requests[0]["tools"]}
     assert "create_chart" in {t["function"]["name"] for t in requests[0]["tools"]}
     assert requests[1]["tool_choice"] == "auto"
+    assert "response_format" not in requests[0]
+    assert "response_format" not in requests[1]
     assert requests[1]["messages"][2].tool_calls[0].id == "1"
+    assert requests[3]["response_format"]["type"] == "json_schema"
+    assert "tools" not in requests[3]
     requests.clear()
     executed.clear()
     repeat = True
@@ -145,6 +162,7 @@ def test_agent_multiple_steps_and_budget(monkeypatch):
     assert len(requests) == 6
     assert len(executed) == 5
     assert requests[-1]["tool_choice"] == "none"
+    assert requests[-1]["response_format"]["type"] == "json_schema"
 
 
 def test_agent_recovers_from_rejected_tool(monkeypatch):
