@@ -68,6 +68,8 @@ interface DatasetRows {
   rows: Array<Record<string, string | number | boolean | null>>;
 }
 
+interface AnalysisJob { id: string; dataset_id: string; question: string; status: 'queued' | 'running' | 'completed' | 'failed'; analysis_id?: string | null; error?: string | null; }
+
 interface PythonResult { result: unknown; row_count: number; column_count: number; execution_ms: number; }
 
 @Component({
@@ -98,6 +100,7 @@ export class App implements OnInit, OnDestroy {
   ];
   protected readonly analysisStatus = signal(this.analysisStatuses[0]);
   private analysisStatusTimer: ReturnType<typeof setInterval> | undefined;
+  private analysisJobTimer: ReturnType<typeof setInterval> | undefined;
   protected readonly navigationCollapsed = signal(false);
   protected readonly activeTab = signal<'analysis' | 'structure' | 'data'>('analysis');
   protected readonly tableModalOpen = signal(false);
@@ -187,6 +190,7 @@ export class App implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.stopAnalysisStatus();
+    if (this.analysisJobTimer) clearInterval(this.analysisJobTimer);
     this.clearError();
   }
 
@@ -248,6 +252,7 @@ export class App implements OnInit, OnDestroy {
         if (this.selectionId !== dataset.id) return;
         this.selectedDataset.set(value);
         this.loadHistory();
+        this.restoreAnalysisJob(dataset.id);
       },
       error: error => this.showError(this.messageFor(error))
     });
@@ -316,14 +321,10 @@ export class App implements OnInit, OnDestroy {
     this.isAnalyzing.set(true);
     this.startAnalysisStatus();
     this.analysis.set(null);
-    this.http.post<DatasetAnalysis>(`/api/datasets/${dataset.id}/analysis`, { question }).subscribe({
-      next: analysis => {
-        if (this.selectedDataset()?.id === dataset.id) {
-          this.analysis.set(analysis);
-          this.loadHistory();
-        }
-        this.isAnalyzing.set(false);
-        this.stopAnalysisStatus();
+    this.http.post<AnalysisJob>(`/api/datasets/${dataset.id}/analysis-jobs`, { question }).subscribe({
+      next: job => {
+        localStorage.setItem('ai-analyst-analysis-job', job.id);
+        this.watchAnalysisJob(job);
       },
       error: error => {
         this.showError(this.messageFor(error));
@@ -348,6 +349,24 @@ export class App implements OnInit, OnDestroy {
     if (tool === 'execute_python') return 'Python-анализ';
     if (tool === 'create_chart') return 'График';
     return tool === 'dataset_summary' ? 'Сводка датасета' : tool === 'group_by_metric' ? 'Группировка по метрике' : 'Проверка данных';
+  }
+
+  private restoreAnalysisJob(datasetId: string): void {
+    const id = localStorage.getItem('ai-analyst-analysis-job');
+    if (!id) return;
+    this.http.get<AnalysisJob>(`/api/datasets/analysis-jobs/${id}`).subscribe({
+      next: job => { if (job.dataset_id === datasetId && job.status !== 'completed' && job.status !== 'failed') { this.isAnalyzing.set(true); this.startAnalysisStatus(); this.watchAnalysisJob(job); } else if (job.status === 'completed') { localStorage.removeItem('ai-analyst-analysis-job'); this.loadHistory(); } },
+      error: () => localStorage.removeItem('ai-analyst-analysis-job')
+    });
+  }
+
+  private watchAnalysisJob(job: AnalysisJob): void {
+    if (this.analysisJobTimer) clearInterval(this.analysisJobTimer);
+    const check = () => this.http.get<AnalysisJob>(`/api/datasets/analysis-jobs/${job.id}`).subscribe({ next: value => {
+      if (value.status === 'completed') { localStorage.removeItem('ai-analyst-analysis-job'); this.isAnalyzing.set(false); this.stopAnalysisStatus(); if (this.selectedDataset()?.id === value.dataset_id) this.loadHistory(); if (this.analysisJobTimer) clearInterval(this.analysisJobTimer); }
+      if (value.status === 'failed') { localStorage.removeItem('ai-analyst-analysis-job'); this.showError(value.error ?? 'Не удалось выполнить анализ.'); this.isAnalyzing.set(false); this.stopAnalysisStatus(); if (this.analysisJobTimer) clearInterval(this.analysisJobTimer); }
+    }, error: error => { this.showError(this.messageFor(error)); } });
+    check(); this.analysisJobTimer = setInterval(check, 1500);
   }
 
   protected pythonResultJson(result: PythonResult | null | undefined): string {

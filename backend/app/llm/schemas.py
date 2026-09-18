@@ -23,6 +23,16 @@ class AnalysisRequest(BaseModel):
     question: str = Field(min_length=3, max_length=1_000)
 
 
+class AnalysisJobResponse(BaseModel):
+    id: UUID
+    dataset_id: UUID
+    question: str
+    status: Literal["queued", "running", "completed", "failed"]
+    analysis_id: UUID | None = None
+    error: str | None = None
+    created_at: datetime
+
+
 class TokenUsage(BaseModel):
     input_tokens: int = Field(ge=0)
     output_tokens: int = Field(ge=0)

@@ -67,9 +67,11 @@ describe('App', () => {
     expect(app.analysisStatus()).toBe('Ушёл думать…');
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Обычно это занимает до 1–2 минут.');
-    const request = http.expectOne('/api/datasets/dataset-id/analysis');
+    const request = http.expectOne('/api/datasets/dataset-id/analysis-jobs');
     expect(request.request.body).toEqual({ question: 'Что происходит с выручкой?' });
-    request.flush({
+    request.flush({ id: 'job-id', dataset_id: 'dataset-id', question: 'Что происходит с выручкой?', status: 'queued' });
+    http.expectOne('/api/datasets/analysis-jobs/job-id').flush({ id: 'job-id', dataset_id: 'dataset-id', question: 'Что происходит с выручкой?', status: 'completed', analysis_id: 'analysis-id' });
+    const saved = {
       id: 'analysis-id', dataset_id: 'dataset-id', question: 'Что происходит с выручкой?',
       created_at: '2026-09-17T10:00:00Z',
       content: {
@@ -80,8 +82,8 @@ describe('App', () => {
       },
       provider: 'openai', model: 'gpt-5.5', usage: { input_tokens: 10, output_tokens: 5 },
       analysis_trace: [{ turn: 1, tool: 'dataset_summary', summary: 'Проверено', duration_ms: 12, result_preview: '{"row_count": 2}' }]
-    });
-    http.expectOne('/api/datasets/dataset-id/analyses?limit=8&offset=0').flush([app.analysis()]);
+    };
+    http.expectOne('/api/datasets/dataset-id/analyses?limit=8&offset=0').flush([saved]);
     fixture.detectChanges();
     await fixture.whenStable();
     expect((fixture.nativeElement as HTMLElement).querySelector('.history-item')?.textContent).toContain('Что происходит с выручкой?');

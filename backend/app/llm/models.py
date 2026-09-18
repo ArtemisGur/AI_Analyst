@@ -18,3 +18,18 @@ class AnalysisRecord(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
+
+
+class AnalysisJob(Base):
+    __tablename__ = "analysis_jobs"
+    __table_args__ = (Index("ix_analysis_jobs_dataset_created", "dataset_id", "created_at"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    dataset_id: Mapped[UUID] = mapped_column(ForeignKey("datasets.id", ondelete="CASCADE"))
+    question: Mapped[str] = mapped_column(String(1000))
+    status: Mapped[str] = mapped_column(String(20), default="queued")
+    analysis_id: Mapped[UUID | None] = mapped_column(ForeignKey("analyses.id"), nullable=True)
+    error: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
