@@ -150,10 +150,10 @@
                 </details>
               }
             </div>
-            @if (history().length) {
+            @if (historyTotal() > historyPageSize) {
               <footer class="history-pagination" aria-label="Пагинация истории анализов">
-                <span>Страница {{ historyPage() + 1 }}</span>
-                <div><button type="button" class="history-export" [disabled]="historyLoading() || historyPage() === 0" (click)="loadHistory(historyPage() - 1)">Назад</button><button type="button" class="history-export" [disabled]="historyLoading() || !historyHasMore()" (click)="loadHistory(historyPage() + 1)">Далее</button></div>
+                <span>Страница {{ historyPage() + 1 }} из {{ historyPageCount() }}</span>
+                <div><button type="button" class="history-export" [disabled]="historyLoading() || historyPage() === 0" (click)="loadHistory(historyPage() - 1)">Назад</button>@for (page of historyPageNumbers(); track page) { <button type="button" class="history-page" [class.active]="page === historyPage()" [disabled]="historyLoading()" (click)="loadHistory(page)">{{ page + 1 }}</button> }<button type="button" class="history-export" [disabled]="historyLoading() || historyPage() >= historyPageCount() - 1" (click)="loadHistory(historyPage() + 1)">Далее</button></div>
               </footer>
             }
           </section>

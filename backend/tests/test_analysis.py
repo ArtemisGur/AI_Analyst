@@ -167,7 +167,9 @@ def test_history_pagination_and_unknown_dataset(client):
     second = test_client.post(
         url + "/analysis", json={"question": "Что происходит с выручкой?"}
     ).json()
-    assert test_client.get(url + "/analyses?limit=1").json()[0]["id"] == second["id"]
+    first_page = test_client.get(url + "/analyses?limit=1")
+    assert first_page.headers["x-total-count"] == "2"
+    assert first_page.json()[0]["id"] == second["id"]
     assert test_client.get(url + "/analyses?limit=1&offset=1").json()[0]["id"] == first["id"]
     assert test_client.get(f"/api/datasets/{uuid4()}/analyses").status_code == 404
     assert test_client.get(url + "/analyses?limit=101").status_code == 422

@@ -1,8 +1,8 @@
 from datetime import UTC
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -32,12 +32,19 @@ def saved_response(record: AnalysisRecord) -> SavedAnalysis:
 @router.get("/{dataset_id}/analyses", response_model=list[SavedAnalysis])
 def list_analyses(
     dataset_id: UUID,
+    response: Response,
     session: Session = Depends(get_session),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ):
     if session.get(Dataset, dataset_id) is None:
         raise HTTPException(404, "Датасет не найден")
+    total = session.scalar(
+        select(func.count())
+        .select_from(AnalysisRecord)
+        .where(AnalysisRecord.dataset_id == dataset_id)
+    )
+    response.headers["X-Total-Count"] = str(total or 0)
     query = (
         select(AnalysisRecord)
         .where(AnalysisRecord.dataset_id == dataset_id)

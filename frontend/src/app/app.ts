@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ChartEvidence, ChartSpec, chartMarkdown } from './chart-evidence';
 import { StatisticsEvidence, StatisticsResult, statisticsMarkdown } from './statistics-evidence';
@@ -77,11 +77,17 @@ export class App implements OnInit {
   protected readonly history = signal<DatasetAnalysis[]>([]);
   protected readonly historyLoading = signal(false);
   protected readonly historyError = signal<string | null>(null);
-  protected readonly historyHasMore = signal(false);
+  protected readonly historyTotal = signal(0);
   protected readonly historyPage = signal(0);
+  protected readonly historyPageCount = computed(() => Math.ceil(this.historyTotal() / this.historyPageSize));
+  protected readonly historyPageNumbers = computed(() => {
+    const pageCount = this.historyPageCount();
+    const start = Math.max(0, Math.min(this.historyPage() - 2, pageCount - 5));
+    return Array.from({ length: Math.min(5, pageCount) }, (_, index) => start + index);
+  });
   private selectionId: string | null = null;
   private historyRequest = 0;
-  private readonly historyPageSize = 8;
+  protected readonly historyPageSize = 8;
 
   protected formatDate(value: string): string {
     return new Intl.DateTimeFormat('ru-RU', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(value));
@@ -94,12 +100,13 @@ export class App implements OnInit {
     this.historyLoading.set(true);
     this.historyError.set(null);
     const offset = page * this.historyPageSize;
-    this.http.get<DatasetAnalysis[]>(`/api/datasets/${id}/analyses?limit=${this.historyPageSize + 1}&offset=${offset}`).subscribe({
-      next: rows => {
+    this.http.get<DatasetAnalysis[]>(`/api/datasets/${id}/analyses?limit=${this.historyPageSize}&offset=${offset}`, { observe: 'response' }).subscribe({
+      next: pageResponse => {
         if (this.selectionId !== id || request !== this.historyRequest) return;
-        this.history.set(rows.slice(0, this.historyPageSize));
+        const rows = pageResponse.body ?? [];
+        this.history.set(rows);
         this.historyPage.set(page);
-        this.historyHasMore.set(rows.length > this.historyPageSize);
+        this.historyTotal.set(Number(pageResponse.headers.get('X-Total-Count') ?? rows.length));
         this.historyLoading.set(false);
       },
       error: () => {
@@ -163,7 +170,7 @@ export class App implements OnInit {
         this.selectionId = dataset.id;
         this.history.set([]);
         this.historyLoading.set(false);
-        this.historyHasMore.set(false);
+        this.historyTotal.set(0);
         this.historyPage.set(0);
         this.historyError.set(null);
         this.analysis.set(null);
@@ -184,7 +191,7 @@ export class App implements OnInit {
     this.selectedDataset.set(null);
     this.history.set([]);
     this.historyLoading.set(false);
-    this.historyHasMore.set(false);
+    this.historyTotal.set(0);
     this.historyPage.set(0);
     this.historyError.set(null);
     this.error.set(null);
