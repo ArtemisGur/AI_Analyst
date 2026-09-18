@@ -50,6 +50,8 @@ describe('App', () => {
     const app = fixture.componentInstance as any;
     app.questionControl.setValue('Что происходит с выручкой?');
     app.analyze();
+    expect(app.isAnalyzing()).toBe(true);
+    expect(app.analysisStatus()).toBe('Ушёл думать…');
     const request = http.expectOne('/api/datasets/dataset-id/analysis');
     expect(request.request.body).toEqual({ question: 'Что происходит с выручкой?' });
     request.flush({

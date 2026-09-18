@@ -105,6 +105,20 @@
               </button>
             </div>
             <p class="analysis-note">Агент выбирает инструменты и проверяет данные. Готовые ответы автоматически сохраняются в истории.</p>
+            @if (isAnalyzing()) {
+              <section class="analysis-progress" role="status" aria-live="polite">
+                <div class="analysis-robot" aria-hidden="true">
+                  <span class="robot-antenna"></span>
+                  <span class="robot-head"><i></i><i></i></span>
+                  <span class="robot-body"></span>
+                </div>
+                <div>
+                  <p>AI Analyst работает</p>
+                  <strong>{{ analysisStatus() }}</strong>
+                  <span>Это может занять немного времени: агент проверяет данные и строит ответ.</span>
+                </div>
+              </section>
+            }
             @if (analysis(); as result) {
               <div class="analysis-result">
                 <div class="saved-heading"><time [attr.datetime]="result.created_at">{{ formatDate(result.created_at) }}</time><button type="button" class="history-export" (click)="exportAnalysis(result)">Скачать Markdown ↓</button></div>

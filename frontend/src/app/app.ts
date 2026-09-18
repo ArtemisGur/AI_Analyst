@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ChartEvidence, ChartSpec, chartMarkdown } from './chart-evidence';
 import { StatisticsEvidence, StatisticsResult, statisticsMarkdown } from './statistics-evidence';
@@ -76,7 +76,7 @@ interface PythonResult { result: unknown; row_count: number; column_count: numbe
   templateUrl: './app.html',
   styleUrls: ['./app.scss', './analysis-history.scss']
 })
-export class App implements OnInit {
+export class App implements OnInit, OnDestroy {
   protected readonly Object = Object;
   protected readonly health = signal<'checking' | 'healthy' | 'unavailable'>('checking');
   protected readonly datasets = signal<DatasetSummary[]>([]);
@@ -88,6 +88,15 @@ export class App implements OnInit {
   protected readonly questionControl = new FormControl('', { nonNullable: true });
   protected readonly analysis = signal<DatasetAnalysis | null>(null);
   protected readonly isAnalyzing = signal(false);
+  private readonly analysisStatuses = [
+    'Ушёл думать…',
+    'Проверяю цифры…',
+    'Ищу закономерности…',
+    'Сверяю выводы…',
+    'Собираю понятный ответ…'
+  ];
+  protected readonly analysisStatus = signal(this.analysisStatuses[0]);
+  private analysisStatusTimer: ReturnType<typeof setInterval> | undefined;
   protected readonly navigationCollapsed = signal(false);
   protected readonly activeTab = signal<'analysis' | 'structure' | 'data'>('analysis');
   protected readonly tableModalOpen = signal(false);
@@ -173,6 +182,10 @@ export class App implements OnInit {
       error: () => this.health.set('unavailable')
     });
     this.loadDatasets();
+  }
+
+  ngOnDestroy(): void {
+    this.stopAnalysisStatus();
   }
 
   protected onFileSelected(event: Event): void {
@@ -297,6 +310,7 @@ export class App implements OnInit {
     }
     this.error.set(null);
     this.isAnalyzing.set(true);
+    this.startAnalysisStatus();
     this.analysis.set(null);
     this.http.post<DatasetAnalysis>(`/api/datasets/${dataset.id}/analysis`, { question }).subscribe({
       next: analysis => {
@@ -305,10 +319,12 @@ export class App implements OnInit {
           this.loadHistory();
         }
         this.isAnalyzing.set(false);
+        this.stopAnalysisStatus();
       },
       error: error => {
         this.error.set(this.messageFor(error));
         this.isAnalyzing.set(false);
+        this.stopAnalysisStatus();
       }
     });
   }
@@ -361,6 +377,23 @@ export class App implements OnInit {
         this.isLoading.set(false);
       }
     });
+  }
+
+  private startAnalysisStatus(): void {
+    this.stopAnalysisStatus();
+    let index = 0;
+    this.analysisStatus.set(this.analysisStatuses[index]);
+    this.analysisStatusTimer = setInterval(() => {
+      index = (index + 1) % this.analysisStatuses.length;
+      this.analysisStatus.set(this.analysisStatuses[index]);
+    }, 2200);
+  }
+
+  private stopAnalysisStatus(): void {
+    if (this.analysisStatusTimer !== undefined) {
+      clearInterval(this.analysisStatusTimer);
+      this.analysisStatusTimer = undefined;
+    }
   }
 
   private messageFor(error: unknown): string {

@@ -18,3 +18,18 @@ main { grid-column: 2; margin: 0 auto; max-width: 1480px; padding: 42px 48px 60p
 @media (max-width: 680px) { main { padding: 22px 16px 32px; }.page-header, .workspace { display: block; }.page-header { margin-bottom: 22px; }.upload-control { margin-top: 20px; }.secondary-action { flex: 1; }.primary-action { flex: 0 0 auto; }.dataset-panel { min-height: auto; margin-bottom: 15px; }.detail-panel { min-height: 380px; padding: 20px; }.dataset-overview, .section-heading { align-items: start; flex-direction: column; gap: 11px; }.metrics { grid-template-columns: 1fr; }.empty-state { min-height: 330px; }.ready-badge { align-self: flex-start; } }
 
 .table-wrap th { position: sticky; top: 0; z-index: 2; }
+
+.analysis-progress { align-items: center; background: #fff; border: 1px solid #dbe5ff; border-radius: 10px; display: flex; gap: 14px; margin-top: 14px; padding: 13px 15px; }
+.analysis-progress p { color: #607298; font-size: 10px; font-weight: 750; letter-spacing: .08em; margin: 0 0 3px; text-transform: uppercase; }
+.analysis-progress strong { color: #263a68; display: block; font-size: 14px; }
+.analysis-progress > div:last-child > span { color: #7786a2; display: block; font-size: 11px; line-height: 1.45; margin-top: 3px; }
+.analysis-robot { flex: 0 0 auto; height: 48px; position: relative; width: 50px; animation: robot-float 1.8s ease-in-out infinite; }
+.robot-antenna { background: #6f90ff; border-radius: 8px; height: 11px; left: 24px; position: absolute; top: 0; width: 3px; }
+.robot-antenna::after { background: #a5b9ff; border-radius: 50%; content: ''; height: 7px; left: -2px; position: absolute; top: -3px; width: 7px; animation: robot-signal 1.3s ease-in-out infinite; }
+.robot-head { align-items: center; background: linear-gradient(135deg, #315eeb, #7899ff); border: 2px solid #224dcf; border-radius: 11px; box-shadow: 0 5px 10px rgb(49 94 235 / 20%); display: flex; gap: 9px; height: 25px; justify-content: center; left: 7px; position: absolute; top: 10px; width: 36px; }
+.robot-head i { background: #e8efff; border-radius: 50%; height: 5px; width: 5px; animation: robot-blink 3.2s infinite; }
+.robot-body { background: #dce6ff; border: 2px solid #6b8bf0; border-radius: 7px 7px 10px 10px; bottom: 0; height: 13px; left: 14px; position: absolute; width: 22px; }
+@keyframes robot-float { 50% { transform: translateY(-4px) rotate(2deg); } }
+@keyframes robot-signal { 50% { box-shadow: 0 0 0 4px rgb(112 144 255 / 15%); opacity: .65; } }
+@keyframes robot-blink { 0%, 45%, 48%, 100% { transform: scaleY(1); } 46%, 47% { transform: scaleY(.15); } }
+@media (prefers-reduced-motion: reduce) { .analysis-robot, .robot-antenna::after, .robot-head i { animation: none; } }
