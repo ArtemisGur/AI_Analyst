@@ -164,14 +164,9 @@ class OpenAIProvider:
                 # when these mutually exclusive response modes are sent in one request.
                 # Enforce the schema only on the final no-tools turn.
                 if tool_choice == "none":
-                    request["response_format"] = {
-                        "type": "json_schema",
-                        "json_schema": {
-                            "name": "dataset_analysis",
-                            "strict": True,
-                            "schema": AnalysisContent.model_json_schema(),
-                        },
-                    }
+                    # Terra accepts function calls, but its relay can stall on a strict
+                    # JSON schema. Validate the ordinary JSON object locally instead.
+                    request["response_format"] = {"type": "json_object"}
                 reply = await self._client.chat.completions.create(**request)
                 input_tokens += getattr(reply.usage, "prompt_tokens", 0) or 0
                 output_tokens += getattr(reply.usage, "completion_tokens", 0) or 0
@@ -193,19 +188,12 @@ class OpenAIProvider:
                             },
                         ],
                         max_tokens=1200,
-                        response_format={
-                            "type": "json_schema",
-                            "json_schema": {
-                                "name": "dataset_analysis",
-                                "strict": True,
-                                "schema": AnalysisContent.model_json_schema(),
-                            },
-                        },
+                    response_format={"type": "json_object"},
                     )
                     input_tokens += getattr(final_reply.usage, "prompt_tokens", 0) or 0
                     output_tokens += getattr(final_reply.usage, "completion_tokens", 0) or 0
                     return GeneratedAnalysis(
-                        content=AnalysisContent.model_validate_json(final_reply.choices[0].message.content),
+                        content=compatible_analysis_content(final_reply.choices[0].message.content),
                         model=getattr(final_reply, "model", None) or model,
                         usage=TokenUsage(input_tokens=input_tokens, output_tokens=output_tokens),
                         analysis_trace=trace,

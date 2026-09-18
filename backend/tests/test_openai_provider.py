@@ -152,7 +152,7 @@ def test_agent_multiple_steps_and_budget(monkeypatch):
     assert "response_format" not in requests[0]
     assert "response_format" not in requests[1]
     assert requests[1]["messages"][2].tool_calls[0].id == "1"
-    assert requests[3]["response_format"]["type"] == "json_schema"
+    assert requests[3]["response_format"]["type"] == "json_object"
     assert "tools" not in requests[3]
     requests.clear()
     executed.clear()
@@ -162,7 +162,7 @@ def test_agent_multiple_steps_and_budget(monkeypatch):
     assert len(requests) == 6
     assert len(executed) == 5
     assert requests[-1]["tool_choice"] == "none"
-    assert requests[-1]["response_format"]["type"] == "json_schema"
+    assert requests[-1]["response_format"]["type"] == "json_object"
 
 
 def test_agent_recovers_from_rejected_tool(monkeypatch):
