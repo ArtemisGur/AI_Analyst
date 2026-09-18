@@ -58,9 +58,11 @@ describe('App', () => {
       content: {
         summary: 'Выручка требует дополнительной проверки.',
         key_findings: ['В preview есть пропуск.'],
+        evidence: [{ finding_index: 0, trace_step_indexes: [0] }],
         limitations: ['Доступен только preview.']
       },
-      provider: 'openai', model: 'gpt-5.5', usage: { input_tokens: 10, output_tokens: 5 }
+      provider: 'openai', model: 'gpt-5.5', usage: { input_tokens: 10, output_tokens: 5 },
+      analysis_trace: [{ turn: 1, tool: 'dataset_summary', summary: 'Проверено', duration_ms: 12, result_preview: '{"row_count": 2}' }]
     });
     http.expectOne('/api/datasets/dataset-id/analyses?limit=8&offset=0').flush([app.analysis()]);
     fixture.detectChanges();
@@ -68,6 +70,7 @@ describe('App', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('.history-item')?.textContent).toContain('Что происходит с выручкой?');
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Ключевые наблюдения');
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('В preview есть пропуск.');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Подтверждено: Шаг 1: Сводка датасета');
   });
 
   it('shows eight saved analyses per page and requests the next offset', () => {

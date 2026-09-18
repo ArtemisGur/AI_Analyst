@@ -127,6 +127,10 @@ def test_agent_multiple_steps_and_budget(monkeypatch):
 
     result = asyncio.run(provider.analyze_dataset(dataset, "Inspect", tool))
     assert len(result.analysis_trace) == 2
+    assert result.analysis_trace[0].turn == 1
+    assert result.analysis_trace[0].arguments == {}
+    assert result.analysis_trace[0].duration_ms >= 0
+    assert result.analysis_trace[0].result_preview == '{"rows": 1}'
     assert result.usage.input_tokens == 30
     assert requests[0]["tool_choice"] == "required"
     assert "column_statistics" in {t["function"]["name"] for t in requests[0]["tools"]}

@@ -11,7 +11,7 @@ from app.api.datasets import get_session
 from app.datasets.models import Dataset
 from app.db.base import Base
 from app.llm.provider import GeneratedAnalysis, LLMProviderError
-from app.llm.schemas import AnalysisContent, TokenUsage
+from app.llm.schemas import AnalysisContent, FindingEvidence, TokenUsage
 from app.main import app
 
 
@@ -25,6 +25,7 @@ class FakeProvider:
             content=AnalysisContent(
                 summary="В preview есть пропуск выручки.",
                 key_findings=["Одна строка содержит пропуск."],
+                evidence=[FindingEvidence(finding_index=0, trace_step_indexes=[0])],
                 limitations=["Доступен только preview датасета."],
             ),
             model="fake-model",
@@ -88,6 +89,7 @@ def test_analysis_returns_structured_response(client):
         "content": {
             "summary": "В preview есть пропуск выручки.",
             "key_findings": ["Одна строка содержит пропуск."],
+            "evidence": [{"finding_index": 0, "trace_step_indexes": [0]}],
             "limitations": ["Доступен только preview датасета."],
         },
         "provider": "fake",

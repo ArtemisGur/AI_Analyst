@@ -27,7 +27,27 @@ interface ColumnMetadata {
 interface AnalysisContent {
   summary: string;
   key_findings: string[];
+  evidence?: FindingEvidence[];
   limitations: string[];
+}
+
+interface FindingEvidence {
+  finding_index: number;
+  trace_step_indexes: number[];
+}
+
+interface AnalysisTraceStep {
+  turn?: number;
+  tool: string;
+  summary: string;
+  arguments?: Record<string, unknown>;
+  duration_ms?: number;
+  result_preview?: string | null;
+  sql_query?: string | null;
+  statistics?: StatisticsResult | null;
+  python_code?: string | null;
+  python_result?: PythonResult | null;
+  chart?: ChartSpec | null;
 }
 
 interface DatasetAnalysis {
@@ -39,7 +59,7 @@ interface DatasetAnalysis {
   provider: string;
   model: string;
   usage: { input_tokens: number; output_tokens: number };
-  analysis_trace?: Array<{ tool: string; summary: string; sql_query?: string | null; statistics?: StatisticsResult | null; python_code?: string | null; python_result?: PythonResult | null; chart?: ChartSpec | null }>;
+  analysis_trace?: AnalysisTraceStep[];
 }
 
 interface DatasetRows {
@@ -57,6 +77,7 @@ interface PythonResult { result: unknown; row_count: number; column_count: numbe
   styleUrls: ['./app.scss', './analysis-history.scss']
 })
 export class App implements OnInit {
+  protected readonly Object = Object;
   protected readonly health = signal<'checking' | 'healthy' | 'unavailable'>('checking');
   protected readonly datasets = signal<DatasetSummary[]>([]);
   protected readonly selectedDataset = signal<Dataset | null>(null);
@@ -122,10 +143,17 @@ export class App implements OnInit {
       '# Анализ данных', '', `Дата: ${this.formatDate(item.created_at)}`,
       `Датасет: ${this.selectedDataset()?.original_filename ?? ''}`, '',
       '## Вопрос', '', item.question, '', '## Вывод', '', item.content.summary, '',
-      '## Ключевые наблюдения', ...item.content.key_findings.map(value => `- ${value}`), '',
+      '## Ключевые наблюдения', ...item.content.key_findings.map((value, index) => {
+        const evidence = this.evidenceFor(item.content, item.analysis_trace, index);
+        return `- ${value}${evidence.length ? `\n  Доказательства: ${evidence.join(', ')}` : ''}`;
+      }), '',
       '## Ограничения', ...item.content.limitations.map(value => `- ${value}`), '',
-      '## Ход анализа', ...(item.analysis_trace ?? []).map(step =>
-        `- ${this.traceLabel(step.tool)}: ${step.summary}` + (step.sql_query ? `\n\n\`\`\`sql\n${step.sql_query}\n\`\`\`\n` : '') + (step.python_code ? `\n\n\`\`\`python\n${step.python_code}\n\`\`\`\n\nРезультат:\n\n\`\`\`json\n${this.pythonResultJson(step.python_result)}\n\`\`\`\n` : '') + (step.chart ? chartMarkdown(step.chart) : '') + (step.statistics ? statisticsMarkdown(step.statistics) : ''))
+      '## Ход анализа', ...(item.analysis_trace ?? []).map((step, index) =>
+        `- Шаг ${step.turn ?? index + 1}. ${this.traceLabel(step.tool)}: ${step.summary}`
+        + ` (${step.duration_ms ?? 0} мс)`
+        + (step.arguments && Object.keys(step.arguments).length ? `\n\nАргументы:\n\n\`\`\`json\n${this.traceArgumentsJson(step.arguments)}\n\`\`\`\n` : '')
+        + (step.result_preview ? `\n\nРезультат:\n\n\`\`\`json\n${step.result_preview}\n\`\`\`\n` : '')
+        + (step.sql_query ? `\n\n\`\`\`sql\n${step.sql_query}\n\`\`\`\n` : '') + (step.python_code ? `\n\n\`\`\`python\n${step.python_code}\n\`\`\`\n\nРезультат:\n\n\`\`\`json\n${this.pythonResultJson(step.python_result)}\n\`\`\`\n` : '') + (step.chart ? chartMarkdown(step.chart) : '') + (step.statistics ? statisticsMarkdown(step.statistics) : ''))
     ].join('\n');
     const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }));
     const link = document.createElement('a');
@@ -304,6 +332,21 @@ export class App implements OnInit {
 
   protected pythonResultJson(result: PythonResult | null | undefined): string {
     return JSON.stringify(result?.result ?? null, null, 2);
+  }
+
+  protected traceArgumentsJson(arguments_: Record<string, unknown>): string {
+    return JSON.stringify(arguments_, null, 2);
+  }
+
+  protected evidenceFor(content: AnalysisContent, trace: AnalysisTraceStep[] | undefined, findingIndex: number): string[] {
+    const steps = trace ?? [];
+    return (content.evidence ?? [])
+      .filter(link => link.finding_index === findingIndex)
+      .flatMap(link => link.trace_step_indexes)
+      .filter((stepIndex, position, indexes) => indexes.indexOf(stepIndex) === position)
+      .map(stepIndex => ({ step: steps[stepIndex], stepIndex }))
+      .filter((entry): entry is { step: AnalysisTraceStep; stepIndex: number } => entry.step !== undefined)
+      .map(({ step, stepIndex }) => `Шаг ${step.turn ?? stepIndex + 1}: ${this.traceLabel(step.tool)}`);
   }
 
   private loadDatasets(): void {
